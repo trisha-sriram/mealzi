@@ -4,7 +4,12 @@ export default {
     "./src/**/*.{js,jsx,ts,tsx}"
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        logo: ['Pacifico', 'cursive'],
+        cute: ['Comfortaa', 'sans-serif'],
+      }
+    },
   },
   plugins: [],
 }
