@@ -1,0 +1,41 @@
+timestamp: 2025-05-20T22:43:05.844084
+CREATE TABLE "auth_user"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "username" CHAR(512) UNIQUE,
+    "email" CHAR(512) UNIQUE,
+    "password" CHAR(512),
+    "first_name" CHAR(512),
+    "last_name" CHAR(512),
+    "sso_id" CHAR(512),
+    "action_token" CHAR(512),
+    "last_password_change" TIMESTAMP,
+    "past_passwords_hash" TEXT
+);
+success!
+timestamp: 2025-05-20T22:43:05.852172
+CREATE TABLE "auth_user_tag_groups"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "tagpath" CHAR(512),
+    "record_id" INTEGER REFERENCES "auth_user" ("id") ON DELETE CASCADE ON UPDATE CASCADE  
+);
+success!
+timestamp: 2025-05-20T22:43:05.861343
+CREATE TABLE "ingredient"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "name" CHAR(64) UNIQUE,
+    "unit" CHAR(512),
+    "description" TEXT,
+    "calories_per_unit" DOUBLE,
+    "protein_per_unit" DOUBLE,
+    "fat_per_unit" DOUBLE,
+    "carbs_per_unit" DOUBLE,
+    "sugar_per_unit" DOUBLE,
+    "fiber_per_unit" DOUBLE,
+    "sodium_per_unit" DOUBLE,
+    "created_on" TIMESTAMP,
+    "created_by" INTEGER REFERENCES "auth_user" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "modified_on" TIMESTAMP,
+    "modified_by" INTEGER REFERENCES "auth_user" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "is_active" CHAR(1)
+);
+success!
