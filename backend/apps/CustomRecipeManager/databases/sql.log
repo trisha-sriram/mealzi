@@ -56,3 +56,16 @@ CREATE TABLE "recipe"(
     "is_active" CHAR(1)
 );
 success!
+timestamp: 2025-05-21T00:31:17.189146
+CREATE TABLE "recipe_ingredient"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "recipe_id" INTEGER REFERENCES "recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "ingredient_id" INTEGER REFERENCES "ingredient" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "quantity_per_serving" DOUBLE,
+    "created_on" TIMESTAMP,
+    "created_by" INTEGER REFERENCES "auth_user" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "modified_on" TIMESTAMP,
+    "modified_by" INTEGER REFERENCES "auth_user" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "is_active" CHAR(1)
+);
+success!
