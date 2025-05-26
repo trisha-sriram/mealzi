@@ -51,3 +51,9 @@ def ingredients_search():
         ).as_list()
     response.headers['Content-Type'] = 'application/json'
     return json.dumps(ingredients)
+
+
+@action('api/recipes', method=["POST"])
+@action.uses(db)
+def create_recipe():
+

@@ -1,23 +1,22 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import AuthModals from "./AuthModals"; // Import the AuthModals component
+import { Link, useLocation, useNavigate } from 'react-router-dom'; // Import Link, useLocation, and useNavigate
+import AuthModals from "./AuthModals"; // Assuming this is in the same directory
 
 function Navbar() {
     const [scrolled, setScrolled] = useState(false);
-    const [activeLink, setActiveLink] = useState("Home");
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [showSignIn, setShowSignIn] = useState(false);
     const [showSignUp, setShowSignUp] = useState(false);
     
+    const location = useLocation(); // Hook to get current location object
+    const navigate = useNavigate(); // Hook for programmatic navigation
+
     // Handle scroll effect
     useEffect(() => {
         const handleScroll = () => {
             const offset = window.scrollY;
-            if (offset > 50) {
-                setScrolled(true);
-            } else {
-                setScrolled(false);
-            }
+            setScrolled(offset > 50);
         };
         
         window.addEventListener('scroll', handleScroll);
@@ -28,23 +27,46 @@ function Navbar() {
 
     // Functions to control modals
     const openSignIn = () => {
-        setMobileMenuOpen(false);
+        setMobileMenuOpen(false); // Close mobile menu if open
         setShowSignUp(false);  // Ensure sign up modal is closed
         setShowSignIn(true);
     };
     
     const openSignUp = () => {
-        setMobileMenuOpen(false);
+        setMobileMenuOpen(false); // Close mobile menu if open
         setShowSignIn(false);  // Ensure sign in modal is closed
         setShowSignUp(true);
     };
 
     const navLinks = [
-        { name: "Home", href: "#" },
-        { name: "Recipes", href: "#recipes" },
-        { name: "Features", href: "#features" },
-        { name: "About", href: "#about" }
+        { name: "Home", href: "/", type: "route" },
+        // Changed "Recipes" to "Create Recipe" for clarity, linking to the new page
+        { name: "Recipes", href: "/recipe-dashboard", type: "route" },
+        // For sections on the landing page, we'll handle them as hash links
+        { name: "Features", href: "#features", type: "hash" },
+        { name: "About", href: "#about", type: "hash" }
     ];
+
+    // Function to handle navigation for all link types
+    const handleNavLinkClick = (link) => {
+        setMobileMenuOpen(false); // Close mobile menu on any link click
+        if (link.type === "route") {
+            // React Router's <Link> component will handle this navigation automatically
+            // No extra logic needed here if using <Link> directly
+        } else if (link.type === "hash") {
+            if (location.pathname === "/") {
+                // If on the homepage, scroll smoothly to the section
+                const element = document.getElementById(link.href.substring(1)); // remove #
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                }
+            } else {
+                // If not on the homepage, navigate to the homepage and then append the hash
+                // This will cause a navigation to "/" and the browser will attempt to jump to the hash
+                navigate(`/${link.href}`);
+            }
+        }
+    };
 
     return (
         <>
@@ -59,54 +81,74 @@ function Navbar() {
                         : "0 10px 30px -10px rgba(0, 0, 0, 0.05)"
                 }}
             >
-                {/* Logo */}
-                <motion.div
-                    className="flex items-center gap-2"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                >
-                    <motion.span 
-                        className="text-2xl"
-                        animate={{ rotate: [0, 10, 0, -10, 0] }}
-                        transition={{ 
-                            duration: 2, 
-                            repeat: Infinity, 
-                            repeatDelay: 5
-                        }}
+                {/* Logo - now a Link */}
+                <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                    <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
                     >
-                        🥕
-                    </motion.span>
-                    <span className="text-2xl md:text-3xl font-logo font-bold text-emerald-600 tracking-tight">
-                        Mealzi
-                    </span>
-                </motion.div>
-
-                {/* Nav Links */}
-                <div className="hidden md:flex items-center gap-8">
-                    {navLinks.map((link) => (
-                        <motion.a
-                            key={link.name}
-                            href={link.href}
-                            className={`relative font-medium text-gray-800 hover:text-emerald-600 transition-colors duration-200 py-1 px-2`}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setActiveLink(link.name);
+                        <motion.span 
+                            className="text-2xl"
+                            animate={{ rotate: [0, 10, 0, -10, 0] }}
+                            transition={{ 
+                                duration: 2, 
+                                repeat: Infinity, 
+                                repeatDelay: 5
                             }}
-                            whileHover={{ y: -2 }}
-                            transition={{ type: "spring", stiffness: 300 }}
                         >
-                            {link.name}
-                            {activeLink === link.name && (
-                                <motion.div
-                                    className="absolute -bottom-1 left-0 right-0 h-0.5 bg-emerald-500 rounded-full"
-                                    layoutId="navbar-underline"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ duration: 0.3 }}
-                                />
-                            )}
-                        </motion.a>
-                    ))}
+                            🥕
+                        </motion.span>
+                        <span className="text-2xl md:text-3xl font-logo font-bold text-emerald-600 tracking-tight">
+                            Mealzi
+                        </span>
+                    </motion.div>
+                </Link>
+
+                {/* Nav Links - Desktop */}
+                <div className="hidden md:flex items-center gap-8">
+                    {navLinks.map((link) => {
+                        // Active state for "route" type links
+                        const isActiveRoute = link.type === "route" && location.pathname === link.href;
+                        // Active state for "hash" links is more complex (requires scroll spy)
+                        // For now, we'll only highlight direct route matches.
+
+                        if (link.type === "route") {
+                            return (
+                                <motion.div key={link.name} className="relative py-1 px-2">
+                                    <Link
+                                        to={link.href}
+                                        className={`font-medium text-gray-800 hover:text-emerald-600 transition-colors duration-200`}
+                                        onClick={() => handleNavLinkClick(link)} // handleNavLinkClick handles mobile menu closure
+                                    >
+                                        {link.name}
+                                    </Link>
+                                    {isActiveRoute && (
+                                        <motion.div
+                                            className="absolute -bottom-1 left-0 right-0 h-0.5 bg-emerald-500 rounded-full"
+                                            layoutId="navbar-underline" // For smooth animation between active links
+                                        />
+                                    )}
+                                </motion.div>
+                            );
+                        } else { // type === "hash"
+                            return (
+                                 <motion.a
+                                    key={link.name}
+                                    href={link.href} 
+                                    className={`relative font-medium text-gray-800 hover:text-emerald-600 transition-colors duration-200 py-1 px-2`}
+                                    onClick={(e) => {
+                                        e.preventDefault(); // Prevent default anchor jump before custom logic
+                                        handleNavLinkClick(link);
+                                    }}
+                                    whileHover={{ y: -2 }}
+                                    transition={{ type: "spring", stiffness: 300 }}
+                                >
+                                    {link.name}
+                                    {/* Active state for hash links would need scroll spy logic */}
+                                </motion.a>
+                            );
+                        }
+                    })}
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -128,50 +170,23 @@ function Navbar() {
                     </motion.button>
                 </div>
 
-                {/* CTA Buttons */}
+                {/* CTA Buttons - Desktop */}
                 <div className="hidden md:flex gap-3 items-center">
                     <motion.button 
                         className="px-5 py-2 text-gray-800 font-medium hover:text-emerald-600 transition-colors duration-200 relative overflow-hidden group"
-                        whileHover={{ y: -2 }}
-                        whileTap={{ y: 0 }}
-                        onClick={openSignIn}
+                        whileHover={{ y: -2 }} whileTap={{ y: 0 }} onClick={openSignIn}
                     >
                         Sign in
-                        <motion.span
-                            className="absolute bottom-0 left-0 right-0 h-[2px] bg-emerald-400 rounded-full origin-left"
-                            initial={{ scaleX: 0 }}
-                            whileHover={{ scaleX: 1 }}
-                            transition={{ duration: 0.3 }}
-                        />
+                        <motion.span className="absolute bottom-0 left-0 right-0 h-[2px] bg-emerald-400 rounded-full origin-left" initial={{ scaleX: 0 }} whileHover={{ scaleX: 1 }} transition={{ duration: 0.3 }}/>
                     </motion.button>
-                    
                     <motion.button 
-                        className="relative group"
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={openSignUp}
+                        className="relative group" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={openSignUp}
                     >
-                        {/* Button background with gradient */}
                         <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-emerald-600 to-lime-500 rounded-lg opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
-                        
-                        {/* Button shine effect */}
-                        <motion.span 
-                            className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent rounded-lg"
-                            initial={{ x: -100, opacity: 0 }}
-                            whileHover={{ x: 200, opacity: 0.5 }}
-                            transition={{ duration: 0.6 }}
-                        />
-                        
-                        {/* Button text */}
+                        <motion.span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent rounded-lg" initial={{ x: -100, opacity: 0 }} whileHover={{ x: 200, opacity: 0.5 }} transition={{ duration: 0.6 }} />
                         <span className="relative inline-flex items-center gap-1 text-white font-medium px-5 py-2">
                             Get Started
-                            <svg 
-                                xmlns="http://www.w3.org/2000/svg" 
-                                className="h-4 w-4 transform group-hover:translate-x-1 transition-transform duration-200" 
-                                fill="none" 
-                                viewBox="0 0 24 24" 
-                                stroke="currentColor"
-                            >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                             </svg>
                         </span>
@@ -185,12 +200,12 @@ function Navbar() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: mobileMenuOpen ? 1 : 0 }}
                 transition={{ duration: 0.2 }}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => setMobileMenuOpen(false)} // Close on overlay click
             />
 
             {/* Mobile menu panel */}
             <motion.div
-                className={`fixed top-[72px] left-0 right-0 bg-white shadow-lg rounded-b-2xl z-40 md:hidden ${mobileMenuOpen ? 'block' : 'hidden'}`}
+                className={`fixed top-[72px] left-0 right-0 bg-white shadow-lg rounded-b-2xl z-40 md:hidden ${mobileMenuOpen ? 'block' : 'hidden'}`} // Adjust top based on your navbar height
                 initial={{ opacity: 0, y: -50 }}
                 animate={{ 
                     opacity: mobileMenuOpen ? 1 : 0,
@@ -199,23 +214,39 @@ function Navbar() {
                 transition={{ duration: 0.3, ease: "easeOut" }}
             >
                 <div className="flex flex-col py-4 gap-1">
-                    {navLinks.map((link, index) => (
-                        <motion.a
-                            key={link.name}
-                            href={link.href}
-                            className={`px-8 py-3 ${activeLink === link.name ? 'bg-emerald-50 text-emerald-600' : 'text-gray-800'} hover:bg-emerald-50 hover:text-emerald-600 transition-colors duration-200`}
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05 + 0.1 }}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setActiveLink(link.name);
-                                setMobileMenuOpen(false);
-                            }}
-                        >
-                            {link.name}
-                        </motion.a>
-                    ))}
+                    {navLinks.map((link, index) => {
+                        const isActiveRoute = link.type === "route" && location.pathname === link.href;
+                        if (link.type === "route") {
+                           return (
+                                <Link
+                                    key={link.name}
+                                    to={link.href}
+                                    className={`block px-8 py-3 ${isActiveRoute ? 'bg-emerald-50 text-emerald-600' : 'text-gray-800'} hover:bg-emerald-50 hover:text-emerald-600 transition-colors duration-200`}
+                                    onClick={() => handleNavLinkClick(link)}
+                                >
+                                    <motion.span initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 + 0.1 }}>
+                                        {link.name}
+                                    </motion.span>
+                                </Link>
+                            );
+                        } else { // type === "hash"
+                             return (
+                                <a // Keep as <a> for hash links, onClick handles logic
+                                    key={link.name}
+                                    href={link.href}
+                                    className={`block px-8 py-3 text-gray-800 hover:bg-emerald-50 hover:text-emerald-600 transition-colors duration-200`}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        handleNavLinkClick(link);
+                                    }}
+                                >
+                                    <motion.span initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 + 0.1 }}>
+                                        {link.name}
+                                    </motion.span>
+                                </a>
+                            );
+                        }
+                    })}
                     <div className="mx-6 my-2 border-t border-gray-100" />
                     <div className="flex flex-col gap-3 px-6 pt-2">
                         <motion.button 
