@@ -50,10 +50,7 @@ function Navbar() {
     };
 
     const navLinks = isAuthenticated() ? [
-        // Dashboard-focused navigation for authenticated users
-        { name: "Dashboard", href: "/recipe-dashboard", type: "route" },
-        { name: "My Recipes", href: "/recipe-dashboard", type: "route" },
-        { name: "Create Recipe", href: "/create-recipe", type: "route" },
+        // No navigation links for authenticated users
     ] : [
         // Marketing navigation for non-authenticated users
         { name: "Home", href: "/", type: "route" },
@@ -220,7 +217,7 @@ function Navbar() {
                                         <p className="text-sm text-gray-500">{user?.email}</p>
                                     </div>
                                     <Link
-                                        to="/recipe-dashboard"
+                                        to="/dashboard"
                                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 transition-colors"
                                         onClick={() => setShowUserMenu(false)}
                                     >
@@ -330,7 +327,7 @@ function Navbar() {
                                 </div>
                             </div>
                             <Link
-                                to="/recipe-dashboard"
+                                to="/dashboard"
                                 className="block w-full py-2.5 px-4 text-center text-gray-800 font-medium border border-gray-200 rounded-lg hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 transition-colors duration-200 mb-3"
                                 onClick={() => setMobileMenuOpen(false)}
                             >

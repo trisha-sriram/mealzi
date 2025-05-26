@@ -24,7 +24,7 @@ function App() {
             <Routes> {/* Container for all your routes */}
               <Route path="/" element={<LandingPage />} />
               <Route 
-                path="/recipe-dashboard" 
+                path="/dashboard" 
                 element={
                   <ProtectedRoute>
                     <RecipeDashboard />

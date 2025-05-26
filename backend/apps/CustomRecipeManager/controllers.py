@@ -83,7 +83,8 @@ def auth_register():
                     "email": user.email,
                     "first_name": user.first_name,
                     "last_name": user.last_name
-                }
+                },
+                "redirect": "/dashboard"
             }
         else:
             logger.error("Registration failed - user_id is None or False")
@@ -155,7 +156,8 @@ def auth_login():
                 return {
                     "success": True,
                     "message": "Login successful",
-                    "user": user_dict
+                    "user": user_dict,
+                    "redirect": "/dashboard"
                 }
         
         response.status = 401

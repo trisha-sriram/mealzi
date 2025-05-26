@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
 
       if (response.ok && data.success) {
         setUser(data.user);
-        return { success: true, message: data.message };
+        return { success: true, message: data.message, redirect: data.redirect };
       } else {
         return { success: false, error: data.error || 'Login failed' };
       }
@@ -85,7 +85,7 @@ export const AuthProvider = ({ children }) => {
 
       if (response.ok && data.success) {
         setUser(data.user);
-        return { success: true, message: data.message };
+        return { success: true, message: data.message, redirect: data.redirect };
       } else {
         return { success: false, error: data.error || 'Registration failed' };
       }

@@ -1,9 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from 'react-router-dom';
 
 function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
   const { login, register } = useAuth();
+  const navigate = useNavigate();
   
   // Form states
   const [signInData, setSignInData] = useState({ email: '', password: '', rememberMe: false });
@@ -74,6 +76,9 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
       
       if (result.success) {
         closeModals(); // Close modal on successful login
+        if (result.redirect) {
+          navigate(result.redirect); // Use React Router's navigate instead of window.location
+        }
       } else {
         setSignInError(result.error);
       }
@@ -112,6 +117,9 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
       
       if (result.success) {
         closeModals(); // Close modal on successful registration
+        if (result.redirect) {
+          navigate(result.redirect); // Use React Router's navigate for redirect
+        }
       } else {
         setSignUpError(result.error);
       }
