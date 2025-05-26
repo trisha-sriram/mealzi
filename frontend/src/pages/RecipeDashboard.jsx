@@ -5,6 +5,7 @@ import RecipeCard from '../components/RecipeCard.jsx';
 import PromoBannerCard from '../components/PromoBannerCard.jsx'; 
 import RecipeDashboardHeader from '../components/RecipeDashboardHeader.jsx'; 
 import RecipeForm from '../components/RecipeForm.jsx'; // This should be your complex modal form
+import Footer from '../components/Footer.jsx';
 
 // Footer is typically global in App.jsx.
 // import Footer from '../components/Footer.jsx'; 
@@ -133,9 +134,10 @@ function RecipeDashboard() {
         showModal={showCreateRecipeModal}
         onClose={closeCreateRecipeModal}
       />
+
+      <Footer />
       
-      {/* Footer is typically handled globally in App.jsx */}
-      {/* <Footer/> */}
+      
     </div>
   );
 }
