@@ -1,20 +1,150 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from 'react-router-dom';
 
 function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
+  const { login, register } = useAuth();
+  const navigate = useNavigate();
+  
+  // Form states
+  const [signInData, setSignInData] = useState({ email: '', password: '', rememberMe: false });
+  const [signUpData, setSignUpData] = useState({ 
+    first_name: '', 
+    last_name: '', 
+    email: '', 
+    password: '', 
+    confirmPassword: '', 
+    terms: false 
+  });
+  
+  // Loading and error states
+  const [signInLoading, setSignInLoading] = useState(false);
+  const [signUpLoading, setSignUpLoading] = useState(false);
+  const [signInError, setSignInError] = useState('');
+  const [signUpError, setSignUpError] = useState('');
+  
   // Switch between modals
   const openSignIn = () => {
     setShowSignUp(false);
     setShowSignIn(true);
+    // Clear form data and errors when switching
+    setSignInData({ email: '', password: '', rememberMe: false });
+    setSignInError('');
   };
   
   const openSignUp = () => {
     setShowSignIn(false);
     setShowSignUp(true);
+    // Clear form data and errors when switching
+    setSignUpData({ 
+      first_name: '', 
+      last_name: '', 
+      email: '', 
+      password: '', 
+      confirmPassword: '', 
+      terms: false 
+    });
+    setSignUpError('');
   };
   
   const closeModals = () => {
     setShowSignIn(false);
     setShowSignUp(false);
+    // Clear form data and errors when closing
+    setSignInData({ email: '', password: '', rememberMe: false });
+    setSignUpData({ 
+      first_name: '', 
+      last_name: '', 
+      email: '', 
+      password: '', 
+      confirmPassword: '', 
+      terms: false 
+    });
+    setSignInError('');
+    setSignUpError('');
+  };
+
+  // Handle sign in form submission
+  const handleSignInSubmit = async (e) => {
+    e.preventDefault();
+    setSignInError('');
+    setSignInLoading(true);
+
+    try {
+      const result = await login(signInData.email, signInData.password);
+      
+      if (result.success) {
+        closeModals(); // Close modal on successful login
+        if (result.redirect) {
+          navigate(result.redirect); // Use React Router's navigate instead of window.location
+        }
+      } else {
+        setSignInError(result.error);
+      }
+    } catch (error) {
+      setSignInError('An unexpected error occurred. Please try again.');
+    } finally {
+      setSignInLoading(false);
+    }
+  };
+
+  // Handle sign up form submission
+  const handleSignUpSubmit = async (e) => {
+    e.preventDefault();
+    setSignUpError('');
+
+    // Validation
+    if (signUpData.password !== signUpData.confirmPassword) {
+      setSignUpError('Passwords do not match');
+      return;
+    }
+
+    if (!signUpData.terms) {
+      setSignUpError('Please accept the terms and conditions');
+      return;
+    }
+
+    setSignUpLoading(true);
+
+    try {
+      const result = await register({
+        first_name: signUpData.first_name,
+        last_name: signUpData.last_name,
+        email: signUpData.email,
+        password: signUpData.password,
+      });
+      
+      if (result.success) {
+        closeModals(); // Close modal on successful registration
+        if (result.redirect) {
+          navigate(result.redirect); // Use React Router's navigate for redirect
+        }
+      } else {
+        setSignUpError(result.error);
+      }
+    } catch (error) {
+      setSignUpError('An unexpected error occurred. Please try again.');
+    } finally {
+      setSignUpLoading(false);
+    }
+  };
+
+  // Handle input changes
+  const handleSignInChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setSignInData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSignUpChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setSignUpData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
   
   return (
@@ -67,7 +197,18 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
               
               {/* Form */}
               <div className="p-8">
-                <form className="space-y-5">
+                <form className="space-y-5" onSubmit={handleSignInSubmit}>
+                  {/* Error Message */}
+                  {signInError && (
+                    <motion.div
+                      className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      {signInError}
+                    </motion.div>
+                  )}
+
                   {/* Email Input */}
                   <div className="space-y-2">
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -84,6 +225,8 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                         name="email"
                         type="email"
                         required
+                        value={signInData.email}
+                        onChange={handleSignInChange}
                         className="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                         placeholder="you@example.com"
                       />
@@ -111,6 +254,8 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                         name="password"
                         type="password"
                         required
+                        value={signInData.password}
+                        onChange={handleSignInChange}
                         className="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                         placeholder="••••••••"
                       />
@@ -120,12 +265,14 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                   {/* Remember Me Checkbox */}
                   <div className="flex items-center">
                     <input
-                      id="remember-me"
-                      name="remember-me"
+                      id="rememberMe"
+                      name="rememberMe"
                       type="checkbox"
+                      checked={signInData.rememberMe}
+                      onChange={handleSignInChange}
                       className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                     />
-                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                    <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
                       Remember me
                     </label>
                   </div>
@@ -133,18 +280,21 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                   {/* Submit Button */}
                   <motion.button
                     type="submit"
-                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-lime-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all relative overflow-hidden group"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    disabled={signInLoading}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-lime-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
+                    whileHover={{ scale: signInLoading ? 1 : 1.02 }}
+                    whileTap={{ scale: signInLoading ? 1 : 0.98 }}
                   >
                     {/* Button shine effect */}
+                    {!signInLoading && (
                     <motion.span 
                       className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent"
                       initial={{ x: -100, opacity: 0 }}
                       whileHover={{ x: 200, opacity: 0.5 }}
                       transition={{ duration: 0.6 }}
                     />
-                    Sign in
+                    )}
+                    {signInLoading ? 'Signing in...' : 'Sign in'}
                   </motion.button>
                 </form>
                 
@@ -291,11 +441,22 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
               
               {/* Form */}
               <div className="p-8">
-                <form className="space-y-4">
+                <form className="space-y-4" onSubmit={handleSignUpSubmit}>
+                  {/* Error Message */}
+                  {signUpError && (
+                    <motion.div
+                      className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      {signUpError}
+                    </motion.div>
+                  )}
+
                   {/* Name Input */}
                   <div className="space-y-2">
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      Full name
+                    <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
+                      First name
                     </label>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -304,12 +465,37 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                         </svg>
                       </span>
                       <input
-                        id="name"
-                        name="name"
+                        id="first_name"
+                        name="first_name"
                         type="text"
                         required
+                        value={signUpData.first_name}
+                        onChange={handleSignUpChange}
                         className="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                        placeholder="John Doe"
+                        placeholder="John"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Last Name Input */}
+                  <div className="space-y-2">
+                    <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
+                      Last name
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </span>
+                      <input
+                        id="last_name"
+                        name="last_name"
+                        type="text"
+                        value={signUpData.last_name}
+                        onChange={handleSignUpChange}
+                        className="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                        placeholder="Doe"
                       />
                     </div>
                   </div>
@@ -330,6 +516,8 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                         name="email"
                         type="email"
                         required
+                        value={signUpData.email}
+                        onChange={handleSignUpChange}
                         className="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                         placeholder="you@example.com"
                       />
@@ -352,6 +540,8 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                         name="password"
                         type="password"
                         required
+                        value={signUpData.password}
+                        onChange={handleSignUpChange}
                         className="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                         placeholder="••••••••"
                       />
@@ -360,7 +550,7 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                   
                   {/* Confirm Password Input */}
                   <div className="space-y-2">
-                    <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                       Confirm password
                     </label>
                     <div className="relative">
@@ -370,10 +560,12 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                         </svg>
                       </span>
                       <input
-                        id="confirm-password"
+                        id="confirmPassword"
                         name="confirmPassword"
                         type="password"
                         required
+                        value={signUpData.confirmPassword}
+                        onChange={handleSignUpChange}
                         className="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                         placeholder="••••••••"
                       />
@@ -388,6 +580,8 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                         name="terms"
                         type="checkbox"
                         required
+                        checked={signUpData.terms}
+                        onChange={handleSignUpChange}
                         className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                       />
                     </div>
@@ -408,18 +602,21 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
                   {/* Submit Button */}
                   <motion.button
                     type="submit"
-                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-lime-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all relative overflow-hidden group mt-6"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    disabled={signUpLoading}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-lime-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all relative overflow-hidden group mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                    whileHover={{ scale: signUpLoading ? 1 : 1.02 }}
+                    whileTap={{ scale: signUpLoading ? 1 : 0.98 }}
                   >
                     {/* Button shine effect */}
+                    {!signUpLoading && (
                     <motion.span 
                       className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent"
                       initial={{ x: -100, opacity: 0 }}
                       whileHover={{ x: 200, opacity: 0.5 }}
                       transition={{ duration: 0.6 }}
                     />
-                    Create account
+                    )}
+                    {signUpLoading ? 'Creating account...' : 'Create account'}
                   </motion.button>
                   
                   {/* Switch to Sign In */}
@@ -440,12 +637,6 @@ function AuthModals({ showSignIn, showSignUp, setShowSignIn, setShowSignUp }) {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      {/* Example buttons to trigger the modals - incorporate these into your navbar */}
-      <div className="hidden">
-        <button onClick={openSignIn}>Sign In</button>
-        <button onClick={openSignUp}>Sign Up</button>
-      </div>
     </>
   );
 }
