@@ -113,19 +113,19 @@ def auth_register():
 @action.uses(db, session, auth)
 def auth_login():
     """Login user"""
-    # Add comprehensive CORS headers
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+    # Add comprehensive CORS headers to match register endpoint
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'  # Match your frontend URL
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
-    
-    logger.info("=== AUTH LOGIN ENDPOINT CALLED ===")
-    logger.info(f"Request method: {request.method}")
+    response.headers['Access-Control-Allow-Credentials'] = 'true'  # Important for credentials: 'include'
     
     try:
-        logger.info("Attempting to parse login request...")
+        # Get the JSON data from the request
         data = request.json
-        logger.info(f"Login attempt for email: {data.get('email', 'No email provided') if data else 'No data'}")
+        logger.info("=== AUTH LOGIN ENDPOINT CALLED ===")
+        logger.info(f"Request method: {request.method}")
+        logger.info("Attempting to parse login request...")
+        logger.info(f"Login attempt for email: {data['email']}")
         
         # Validate required fields
         if not data or not all(field in data for field in ['email', 'password']):
@@ -133,21 +133,49 @@ def auth_login():
             return {"error": "Missing required fields: email, password"}
         
         # Use py4web's auth.login() method
-        user = auth.login(data['email'], data['password'])
+        login_result = auth.login(data['email'], data['password'])
+        logger.info(f"Login result type: {type(login_result)}")
+        logger.info(f"Login result: {login_result}")
         
-        if user:
-            # Convert Row object to dictionary
-            user_dict = {
-                "id": user.id,
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name
-            }
-            return {
-                "success": True,
-                "message": "Login successful",
-                "user": user_dict
-            }
+        # Handle the tuple return from auth.login()
+        if login_result and len(login_result) >= 2:
+            user, success = login_result
+            logger.info(f"User type: {type(user)}, Success: {success}")
+            
+            # Check if user exists (success might be None but user is valid)
+            if user and hasattr(user, 'id'):
+                # Check if user is a Row object or dict-like
+                if hasattr(user, 'as_dict'):
+                    # It's a Row object, convert to dict
+                    user_dict = user.as_dict()
+                elif hasattr(user, 'id'):
+                    # It's already accessible as object
+                    user_dict = {
+                        "id": user.id,
+                        "email": user.email,
+                        "first_name": user.first_name,
+                        "last_name": user.last_name
+                    }
+                else:
+                    # Fallback: get user from database using the returned info
+                    logger.info("User object doesn't have expected attributes, fetching from DB")
+                    db_user = db(db.auth_user.email == data['email']).select().first()
+                    if db_user:
+                        user_dict = {
+                            "id": db_user.id,
+                            "email": db_user.email,
+                            "first_name": db_user.first_name,
+                            "last_name": db_user.last_name
+                        }
+                    else:
+                        response.status = 401
+                        return {"error": "User not found after login"}
+                
+                return {
+                    "success": True,
+                    "message": "Login successful",
+                    "user": user_dict
+                }
         
         response.status = 401
         return {"error": "Invalid email or password"}
@@ -164,9 +192,9 @@ def auth_login():
 def auth_logout():
     """Logout user"""
     # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Headers'] = 'true'
     
     try:
         auth.logout()
@@ -181,9 +209,9 @@ def auth_logout():
 def auth_user():
     """Get current user info"""
     # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Headers'] = 'true'
     
     try:
         if auth.current_user:
@@ -212,7 +240,7 @@ def auth_user():
 @action.uses(db)
 def ingredients_search():
     # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     
@@ -241,7 +269,7 @@ def ingredients_search():
 @action.uses(db, session, auth.user)  # Require authentication for recipe creation
 def create_recipe():
     # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     
@@ -284,7 +312,7 @@ def create_recipe():
 @action.uses(db, session, auth.user)  # Require authentication for recipe access
 def get_recipes():
     # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     
@@ -306,7 +334,7 @@ def get_recipes():
 @action.uses(db)
 def submit_contact():
     # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     
@@ -402,21 +430,21 @@ This is an automated response. Please do not reply to this email.
 # Handle CORS preflight requests
 @action('api/contact', method=["OPTIONS"])
 def contact_options():
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return ""
 
 @action('api/ingredients_search', method=["OPTIONS"])
 def ingredients_search_options():
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return ""
 
 @action('api/recipes', method=["OPTIONS"])
 def recipes_options():
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return ""
@@ -440,15 +468,15 @@ def auth_login_options():
 
 @action('api/auth/logout', method=["OPTIONS"])
 def auth_logout_options():
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Headers'] = 'true'
     return ""
 
 @action('api/auth/user', method=["OPTIONS"])
 def auth_user_options():
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Headers'] = 'true'
     return ""
 
