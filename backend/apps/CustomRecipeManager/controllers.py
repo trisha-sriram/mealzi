@@ -43,15 +43,9 @@ def auth_register():
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Credentials'] = 'true'  # Important for credentials: 'include'
     
-    logger.info("=== AUTH REGISTER ENDPOINT CALLED ===")
-    logger.info(f"Request method: {request.method}")
-    logger.info(f"Content-Type: {request.headers.get('Content-Type', 'Not set')}")
-    logger.info(f"Origin: {request.headers.get('Origin', 'Not set')}")
     
     try:
-        logger.info("Attempting to parse request.json...")
         data = request.json
-        logger.info(f"Received data keys: {list(data.keys()) if data else 'No data'}")
         
         # Validate required fields
         if not data or not all(field in data for field in ['email', 'password', 'first_name']):
@@ -59,7 +53,6 @@ def auth_register():
             response.status = 400
             return {"error": "Missing required fields: email, password, first_name"}
         
-        logger.info(f"Checking if user exists with email: {data['email']}")
         # Check if user already exists
         existing_user = db(db.auth_user.email == data['email']).select().first()
         if existing_user:
@@ -67,7 +60,6 @@ def auth_register():
             response.status = 400
             return {"error": "User with this email already exists"}
         
-        logger.info("Attempting to register user with py4web auth...")
         # Register the user by inserting directly into auth_user table
         # py4web auth.register() has different parameters than expected
         from pydal.validators import CRYPT
@@ -80,12 +72,9 @@ def auth_register():
             username=data['email']  # Use email as username
         )
         
-        logger.info(f"Registration result - user_id: {user_id}")
-        
         if user_id:
             # Get the created user info
             user = db.auth_user[user_id]
-            logger.info(f"User successfully created: {user.id}, {user.email}")
             return {
                 "success": True,
                 "message": "Registration successful",
@@ -122,10 +111,6 @@ def auth_login():
     try:
         # Get the JSON data from the request
         data = request.json
-        logger.info("=== AUTH LOGIN ENDPOINT CALLED ===")
-        logger.info(f"Request method: {request.method}")
-        logger.info("Attempting to parse login request...")
-        logger.info(f"Login attempt for email: {data['email']}")
         
         # Validate required fields
         if not data or not all(field in data for field in ['email', 'password']):
@@ -134,13 +119,10 @@ def auth_login():
         
         # Use py4web's auth.login() method
         login_result = auth.login(data['email'], data['password'])
-        logger.info(f"Login result type: {type(login_result)}")
-        logger.info(f"Login result: {login_result}")
         
         # Handle the tuple return from auth.login()
         if login_result and len(login_result) >= 2:
             user, success = login_result
-            logger.info(f"User type: {type(user)}, Success: {success}")
             
             # Check if user exists (success might be None but user is valid)
             if user and hasattr(user, 'id'):
@@ -158,7 +140,6 @@ def auth_login():
                     }
                 else:
                     # Fallback: get user from database using the returned info
-                    logger.info("User object doesn't have expected attributes, fetching from DB")
                     db_user = db(db.auth_user.email == data['email']).select().first()
                     if db_user:
                         user_dict = {
@@ -194,10 +175,11 @@ def auth_logout():
     # Add CORS headers
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'true'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
     
     try:
-        auth.logout()
+        session.clear()
         return {"success": True, "message": "Logout successful"}
     except Exception as e:
         logger.error(f"Logout error: {str(e)}")
@@ -211,7 +193,8 @@ def auth_user():
     # Add CORS headers
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'true'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
     
     try:
         if auth.current_user:
@@ -470,13 +453,15 @@ def auth_login_options():
 def auth_logout_options():
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'true'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
     return ""
 
 @action('api/auth/user', method=["OPTIONS"])
 def auth_user_options():
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'true'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
     return ""
 
