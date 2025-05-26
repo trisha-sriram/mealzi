@@ -78,6 +78,7 @@ function FeaturesSection() {
 
   return (
     <section
+      id="features"
       ref={sectionRef}
       className="w-full py-20 bg-white overflow-hidden"
     >

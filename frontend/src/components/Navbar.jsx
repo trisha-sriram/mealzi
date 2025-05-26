@@ -44,7 +44,8 @@ function Navbar() {
         { name: "Recipes", href: "/recipe-dashboard", type: "route" },
         // For sections on the landing page, we'll handle them as hash links
         { name: "Features", href: "#features", type: "hash" },
-        { name: "About", href: "#about", type: "hash" }
+        { name: "About", href: "#about", type: "hash" },
+        { name: "Contact", href: "/contact", type: "route" }
     ];
 
     // Function to handle navigation for all link types

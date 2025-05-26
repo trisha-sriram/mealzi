@@ -52,11 +52,14 @@ LOGIN_AFTER_REGISTRATION = False
 ALLOWED_ACTIONS = ["all"]
 
 # email settings
-SMTP_SSL = False
-SMTP_SERVER = None
-SMTP_SENDER = "you@example.com"
-SMTP_LOGIN = "username:password"
-SMTP_TLS = False
+SMTP_SSL = False  # Use STARTTLS instead of direct SSL for port 587
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com:587")
+SMTP_SENDER = os.environ.get("SMTP_SENDER", "mealzigroup@gmail.com")
+SMTP_LOGIN = os.environ.get("SMTP_LOGIN", "mealzigroup@gmail.com:rslygqrvcoasxobc")  # format: "email:password"
+SMTP_TLS = True  # Enable STARTTLS for secure connection
+
+# Contact form notification settings
+CONTACT_NOTIFICATION_EMAIL = os.environ.get("CONTACT_NOTIFICATION_EMAIL", "mealzigroup@gmail.com")
 
 # session settings
 SESSION_TYPE = "cookies"

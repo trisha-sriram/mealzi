@@ -69,3 +69,18 @@ CREATE TABLE "recipe_ingredient"(
     "is_active" CHAR(1)
 );
 success!
+timestamp: 2025-05-25T18:19:05.205063
+CREATE TABLE "contact"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "name" CHAR(100),
+    "email" CHAR(255),
+    "subject" CHAR(200),
+    "message" TEXT,
+    "status" CHAR(512),
+    "created_on" TIMESTAMP,
+    "created_by" INTEGER REFERENCES "auth_user" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "modified_on" TIMESTAMP,
+    "modified_by" INTEGER REFERENCES "auth_user" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "is_active" CHAR(1)
+);
+success!

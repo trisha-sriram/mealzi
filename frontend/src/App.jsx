@@ -8,6 +8,7 @@ import Footer from './components/Footer.jsx';
 // Page components
 import LandingPage from './pages/LandingPage'; // Assuming you've created src/pages/LandingPage.js as per the other Canvas
 import RecipeDashboard from './pages/RecipeDashboard.jsx'; // We'll define this page next
+import ContactPage from './pages/ContactPage.jsx';
 
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
           <Routes> {/* Container for all your routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/recipe-dashboard" element={<RecipeDashboard />} />
+            <Route path="/contact" element={<ContactPage />} />
             {/* Add more routes here as needed, e.g.: */}
             {/* <Route path="/recipes" element={<AllRecipesPage />} /> */}
             {/* <Route path="/recipes/:id" element={<RecipeDetailPage />} /> */}

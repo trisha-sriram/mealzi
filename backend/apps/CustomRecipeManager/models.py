@@ -3,6 +3,7 @@ This file defines the database models
 """
 
 from pydal.validators import *
+import datetime
 
 from .common import Field, db, auth
 
@@ -54,6 +55,17 @@ db.define_table(
     Field('quantity_per_serving', 'double', requires=IS_FLOAT_IN_RANGE(0.01, 10000)),
     auth.signature, 
     format='%(ingredient_id)s'
+)
+
+db.define_table(
+    'contact',
+    Field('name', 'string', length=100, requires=[IS_NOT_EMPTY(), IS_LENGTH(100)]),
+    Field('email', 'string', length=255, requires=[IS_NOT_EMPTY(), IS_EMAIL()]),
+    Field('subject', 'string', length=200, requires=[IS_NOT_EMPTY(), IS_LENGTH(200)]),
+    Field('message', 'text', requires=[IS_NOT_EMPTY(), IS_LENGTH(2000)]),
+    Field('status', 'string', default='new', requires=IS_IN_SET(['new', 'in_progress', 'resolved'])),
+    auth.signature,
+    format='%(subject)s'
 )
 
 db.commit()
