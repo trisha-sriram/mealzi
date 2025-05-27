@@ -1,6 +1,5 @@
 """
-This file defines actions, i.e. functions the URLs are mapped into
-The @action(path) decorator exposed the function at URL:
+This file defines actions, i.e. functions the URLs are mapped into.
 
     http://127.0.0.1:8000/{app_name}/{path}
 
@@ -12,261 +11,229 @@ If path == 'index' it can be omitted:
 
     http://127.0.0.1:8000/
 
-The path follows the bottlepy syntax.
-
-@action.uses('generic.html')  indicates that the action uses the generic.html template
-@action.uses(session)         indicates that the action uses the session
-@action.uses(db)              indicates that the action uses the db
-@action.uses(T)               indicates that the action uses the i18n & pluralization
-@action.uses(auth.user)       indicates that the action requires a logged in user
-@action.uses(auth)            indicates that the action requires the auth object
-
-session, db, T, auth, and tempates are examples of Fixtures.
-Warning: Fixtures MUST be declared with @action.uses({fixtures}) else your app will result in undefined behavior
+---------------------------------------------------------------
+Fixture decorators:
+@action.uses('generic.html')
+@action.uses(session)
+@action.uses(db)
+@action.uses(T)
+@action.uses(auth.user)
+@action.uses(auth)
+---------------------------------------------------------------
 """
+
 import json
+import traceback
 from yatl.helpers import A
 from py4web import URL, abort, action, redirect, request, response
-from .common import (T, auth, authenticated, cache, db, flash, logger, session,
-                     unauthenticated)
+from .common import (
+    T, auth, authenticated, cache, db, flash, logger,
+    session, unauthenticated
+)
 from . import settings
 
-# ===================== AUTHENTICATION ENDPOINTS =====================
+# ==============================================================
+# -------------------- INGREDIENT SEARCH -----------------------
+# ==============================================================
+
+@action('api/ingredients/search', method=['GET'])
+@action.uses(db)
+def ingredients_search():
+    """Search ingredients with pagination"""
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    
+    query = request.params.get('query', '').strip().lower()
+    page  = int(request.params.get('page', 1))
+    limit = int(request.params.get('limit', 5))
+
+    start, end = (page - 1) * limit, (page * limit)
+
+    ingredients_query = (
+        db.ingredient.name.ilike(f"{query}%") if query else db.ingredient
+    )
+    total_count = db(ingredients_query).count()
+
+    ingredients = db(ingredients_query).select(
+        db.ingredient.name,
+        db.ingredient.unit,
+        db.ingredient.description,
+        db.ingredient.calories_per_unit,
+        db.ingredient.protein_per_unit,
+        db.ingredient.fat_per_unit,
+        db.ingredient.carbs_per_unit,
+        db.ingredient.sugar_per_unit,
+        db.ingredient.fiber_per_unit,
+        db.ingredient.sodium_per_unit,
+        orderby=db.ingredient.name,
+        limitby=(start, end)
+    ).as_list()
+
+    return dict(
+        ingredients=ingredients,
+        total=total_count,
+        page=page,
+        limit=limit
+    )
+
+@action('api/ingredients/search', method=['OPTIONS'])
+def ingredients_search_options():
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return ""
+
+# ==============================================================
+# ------------------- AUTHENTICATION API -----------------------
+# ==============================================================
 
 @action('api/auth/register', method=['POST'])
 @action.uses(db, session, auth)
 def auth_register():
     """Register a new user"""
-    # Add comprehensive CORS headers
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'  # Updated to correct frontend URL
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'  # Important for credentials: 'include'
-    
-    
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+
     try:
-        data = request.json
-        
-        # Validate required fields
-        if not data or not all(field in data for field in ['email', 'password', 'first_name']):
-            logger.error(f"Missing required fields. Data: {data}")
+        data = request.json or {}
+        required = {'email', 'password', 'first_name'}
+        if not required.issubset(data):
             response.status = 400
-            return {"error": "Missing required fields: email, password, first_name"}
-        
-        # Check if user already exists
-        existing_user = db(db.auth_user.email == data['email']).select().first()
-        if existing_user:
-            logger.warning(f"User already exists with email: {data['email']}")
+            return {"error": f"Missing required fields: {', '.join(required)}"}
+
+        if db(db.auth_user.email == data['email']).count():
             response.status = 400
             return {"error": "User with this email already exists"}
-        
-        # Register the user by inserting directly into auth_user table
-        # py4web auth.register() has different parameters than expected
+
         from pydal.validators import CRYPT
-        
         user_id = db.auth_user.insert(
             email=data['email'],
-            password=CRYPT()(data['password'])[0],  # Hash the password
+            password=CRYPT()(data['password'])[0],
             first_name=data['first_name'],
             last_name=data.get('last_name', ''),
-            username=data['email']  # Use email as username
+            username=data['email']
         )
-        
-        if user_id:
-            # Get the created user info
-            user = db.auth_user[user_id]
-            return {
-                "success": True,
-                "message": "Registration successful",
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name
-                },
-                "redirect": "/dashboard"
-            }
-        else:
-            logger.error("Registration failed - user_id is None or False")
-            response.status = 400
-            return {"error": "Registration failed"}
-            
+
+        user = db.auth_user[user_id]
+        return {
+            "success": True,
+            "message": "Registration successful",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name
+            },
+            "redirect": "/dashboard"
+        }
     except Exception as e:
-        logger.error(f"Registration error: {str(e)}")
-        logger.error(f"Error type: {type(e)}")
-        import traceback
-        logger.error(f"Full traceback: {traceback.format_exc()}")
+        logger.error(f"Registration error: {e}\n{traceback.format_exc()}")
         response.status = 500
         return {"error": "Registration failed. Please try again."}
 
 @action('api/auth/login', method=['POST'])
 @action.uses(db, session, auth)
 def auth_login():
-    """Login user"""
-    # Add comprehensive CORS headers to match register endpoint
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'  # Match your frontend URL
+    """Log a user in"""
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'  # Important for credentials: 'include'
-    
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+
     try:
-        # Get the JSON data from the request
-        data = request.json
-        
-        # Validate required fields
-        if not data or not all(field in data for field in ['email', 'password']):
+        data = request.json or {}
+        if not {'email', 'password'}.issubset(data):
             response.status = 400
             return {"error": "Missing required fields: email, password"}
-        
-        # Use py4web's auth.login() method
-        login_result = auth.login(data['email'], data['password'])
-        
-        # Handle the tuple return from auth.login()
-        if login_result and len(login_result) >= 2:
-            user, success = login_result
-            
-            # Check if user exists (success might be None but user is valid)
-            if user and hasattr(user, 'id'):
-                # Check if user is a Row object or dict-like
-                if hasattr(user, 'as_dict'):
-                    # It's a Row object, convert to dict
-                    user_dict = user.as_dict()
-                elif hasattr(user, 'id'):
-                    # It's already accessible as object
-                    user_dict = {
-                        "id": user.id,
-                        "email": user.email,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name
-                    }
-                else:
-                    # Fallback: get user from database using the returned info
-                    db_user = db(db.auth_user.email == data['email']).select().first()
-                    if db_user:
-                        user_dict = {
-                            "id": db_user.id,
-                            "email": db_user.email,
-                            "first_name": db_user.first_name,
-                            "last_name": db_user.last_name
-                        }
-                    else:
-                        response.status = 401
-                        return {"error": "User not found after login"}
-                
-                return {
-                    "success": True,
-                    "message": "Login successful",
-                    "user": user_dict,
-                    "redirect": "/dashboard"
-                }
-        
+
+        user, success = auth.login(data['email'], data['password']) or (None, None)
+        if user:
+            user_dict = (user.as_dict() if hasattr(user, 'as_dict') else {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name
+            })
+            return {
+                "success": True,
+                "message": "Login successful",
+                "user": user_dict,
+                "redirect": "/dashboard"
+            }
+
         response.status = 401
         return {"error": "Invalid email or password"}
-            
     except Exception as e:
-        logger.error(f"Login error: {str(e)}")
-        import traceback
-        logger.error(f"Full traceback: {traceback.format_exc()}")
+        logger.error(f"Login error: {e}\n{traceback.format_exc()}")
         response.status = 500
         return {"error": "Login failed. Please try again."}
 
 @action('api/auth/logout', method=['POST'])
 @action.uses(db, session, auth)
 def auth_logout():
-    """Logout user"""
-    # Add CORS headers
+    """Log a user out"""
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
-    
-    try:
-        session.clear()
-        return {"success": True, "message": "Logout successful"}
-    except Exception as e:
-        logger.error(f"Logout error: {str(e)}")
-        response.status = 500
-        return {"error": "Logout failed"}
+    session.clear()
+    return {"success": True, "message": "Logout successful"}
 
 @action('api/auth/user', method=['GET'])
 @action.uses(db, session, auth)
 def auth_user():
-    """Get current user info"""
-    # Add CORS headers
+    """Return current user info"""
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
-    
-    try:
-        if auth.current_user:
-            user = auth.current_user
-            return {
-                "success": True,
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name
-                }
+
+    if auth.current_user:
+        u = auth.current_user
+        return {
+            "success": True,
+            "user": {
+                "id": u.id,
+                "email": u.email,
+                "first_name": u.first_name,
+                "last_name": u.last_name
             }
-        else:
-            response.status = 401
-            return {"error": "Not authenticated"}
-            
-    except Exception as e:
-        logger.error(f"User info error: {str(e)}")
-        response.status = 500
-        return {"error": "Failed to get user info"}
+        }
+    response.status = 401
+    return {"error": "Not authenticated"}
 
-# ===================== EXISTING API ENDPOINTS =====================
+# -------- CORS OPTION handlers for auth --------
+for _path in ('register', 'login', 'logout', 'user'):
+    @action(f'api/auth/{_path}', method=['OPTIONS'])
+    def _auth_opts():
+        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return ""
 
-@action('api/ingredients_search', method=["GET"])
-@action.uses(db)
-def ingredients_search():
-    # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    
-    query = request.params.get('query', '').strip().lower()
-    if not query:
-        ingredients = []
-    else:
-        ingredients = db(db.ingredient.name.ilike(f"%{query}%")).select(
-            db.ingredient.name, 
-            db.ingredient.unit,
-            db.ingredient.calories_per_unit,
-            db.ingredient.protein_per_unit,  
-            db.ingredient.fat_per_unit, 
-            db.ingredient.carbs_per_unit,
-            db.ingredient.sugar_per_unit,
-            db.ingredient.fiber_per_unit,
-            db.ingredient.sodium_per_unit,
-            orderby=db.ingredient.name, 
-            limitby=(0, 20)
-        ).as_list()
-    response.headers['Content-Type'] = 'application/json'
-    return json.dumps(ingredients)
+# ==============================================================
+# ------------------ RECIPE CRUD ENDPOINTS ---------------------
+# ==============================================================
 
-
-@action('api/recipes', method=["POST"])
-@action.uses(db, session, auth.user)  # Require authentication for recipe creation
+@action('api/recipes', method=['POST'])
+@action.uses(db, session, auth.user)
 def create_recipe():
-    # Add CORS headers
+    """Create a new recipe (authenticated)"""
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    
+
     try:
-        data = request.json
-        
-        # Validate required fields
-        if not data or not all(field in data for field in ['name', 'type', 'description', 'instruction_steps', 'servings']):
+        data = request.json or {}
+        required = {'name', 'type', 'description', 'instruction_steps', 'servings'}
+        if not required.issubset(data):
             response.status = 400
             return {"error": "Missing required fields"}
-        
-        # Create recipe
+
         recipe_id = db.recipe.insert(
             name=data['name'],
             type=data['type'],
@@ -275,195 +242,105 @@ def create_recipe():
             servings=data['servings'],
             author=auth.current_user.id
         )
-        
-        # Insert recipe ingredients if provided
-        if data.get('ingredients'):
-            for ingredient_data in data['ingredients']:
-                db.recipe_ingredient.insert(
-                    recipe_id=recipe_id,
-                    ingredient_id=ingredient_data['ingredient_id'],
-                    quantity_per_serving=ingredient_data['quantity_per_serving']
-                )
-        
-        response.headers['Content-Type'] = 'application/json'
-        return {"success": True, "recipe_id": recipe_id, "message": "Recipe created successfully"}
-        
+
+        for ing in data.get('ingredients', []):
+            db.recipe_ingredient.insert(
+                recipe_id=recipe_id,
+                ingredient_id=ing['ingredient_id'],
+                quantity_per_serving=ing['quantity_per_serving']
+            )
+
+        return {
+            "success": True,
+            "recipe_id": recipe_id,
+            "message": "Recipe created successfully"
+        }
     except Exception as e:
-        logger.error(f"Recipe creation error: {str(e)}")
+        logger.error(f"Recipe creation error: {e}\n{traceback.format_exc()}")
         response.status = 500
         return {"error": "Failed to create recipe"}
 
-@action('api/recipes', method=["GET"])
-@action.uses(db, session, auth.user)  # Require authentication for recipe access
+@action('api/recipes', method=['GET'])
+@action.uses(db, session, auth.user)
 def get_recipes():
-    # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    
+    """Return recipes authored by current user"""
+    response.headers['Access-Control-Allow-Origin']   = 'http://localhost:5173'
+    response.headers['Access-Control-Allow-Methods']  = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers']  = 'Content-Type'
+
     try:
-        # Get recipes for the current user
         recipes = db(db.recipe.author == auth.current_user.id).select(
             orderby=~db.recipe.created_on
         ).as_list()
-        
-        response.headers['Content-Type'] = 'application/json'
+
         return {"success": True, "recipes": recipes}
-        
     except Exception as e:
-        logger.error(f"Get recipes error: {str(e)}")
+        logger.error(f"Get recipes error: {e}\n{traceback.format_exc()}")
         response.status = 500
         return {"error": "Failed to get recipes"}
 
-@action('api/contact', method=["POST"])
-@action.uses(db)
-def submit_contact():
-    # Add CORS headers
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    
-    try:
-        # Get the JSON data from the request
-        data = request.json
-        
-        # Validate required fields
-        if not data or not all(field in data for field in ['name', 'email', 'subject', 'message']):
-            response.status = 400
-            return {"error": "Missing required fields: name, email, subject, message"}
-        
-        # Insert the contact message into the database
-        contact_id = db.contact.insert(
-            name=data['name'],
-            email=data['email'], 
-            subject=data['subject'],
-            message=data['message']
-        )
-        
-        if contact_id:
-            # Send email notification if mailer is configured
-            try:
-                if auth.sender and hasattr(settings, 'CONTACT_NOTIFICATION_EMAIL'):
-                    
-                    # Email to admin
-                    admin_subject = f"New Contact Form Submission: {data['subject']}"
-                    admin_message = f"""
-New contact form submission received:
-
-From: {data['name']} <{data['email']}>
-Subject: {data['subject']}
-
-Message:
-{data['message']}
-
----
-Contact ID: {contact_id}
-Submitted via Mealzi Contact Form
-                    """
-                    
-                    auth.sender.send(
-                        to=[settings.CONTACT_NOTIFICATION_EMAIL],
-                        subject=admin_subject,
-                        body=admin_message
-                    )
-                    
-                    # Confirmation email to user
-                    user_subject = "Thank you for contacting Mealzi!"
-                    user_message = f"""
-Hi {data['name']},
-
-Thank you for reaching out to us! We've received your message about "{data['subject']}" and will get back to you within 24 hours.
-
-Your message:
-{data['message']}
-
-Best regards,
-The Mealzi Team
-
----
-This is an automated response. Please do not reply to this email.
-                    """
-                    
-                    auth.sender.send(
-                        to=[data['email']],
-                        subject=user_subject,
-                        body=user_message
-                    )
-                    logger.info(f"User confirmation email sent successfully")
-                    
-                else:
-                    logger.warning("Email not configured - auth.sender or CONTACT_NOTIFICATION_EMAIL missing")
-                    
-            except Exception as email_error:
-                logger.error(f"Failed to send contact form emails: {str(email_error)}")
-                import traceback
-                logger.error(f"Email error traceback: {traceback.format_exc()}")
-                # Don't fail the request if email fails, but log it
-            
-            response.headers['Content-Type'] = 'application/json'
-            return {"success": True, "message": "Your message has been sent successfully!", "id": contact_id}
-        else:
-            response.status = 500
-            return {"error": "Failed to save your message. Please try again."}
-            
-    except Exception as e:
-        logger.error(f"Error in contact submission: {str(e)}")
-        response.status = 500
-        return {"error": "An unexpected error occurred. Please try again later."}
-
-
-# Handle CORS preflight requests
-@action('api/contact', method=["OPTIONS"])
-def contact_options():
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    return ""
-
-@action('api/ingredients_search', method=["OPTIONS"])
-def ingredients_search_options():
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    return ""
-
-@action('api/recipes', method=["OPTIONS"])
+@action('api/recipes', method=['OPTIONS'])
 def recipes_options():
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return ""
 
-# Authentication CORS handlers
-@action('api/auth/register', method=["OPTIONS"])
-def auth_register_options():
+# ==============================================================
+# ------------------- CONTACT FORM ENDPOINT --------------------
+# ==============================================================
+
+@action('api/contact', method=['POST'])
+@action.uses(db)
+def submit_contact():
+    """Contact-us form"""
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
-    return ""
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
 
-@action('api/auth/login', method=["OPTIONS"])
-def auth_login_options():
+    try:
+        data = request.json or {}
+        required = {'name', 'email', 'subject', 'message'}
+        if not required.issubset(data):
+            response.status = 400
+            return {"error": "Missing required fields: name, email, subject, message"}
+
+        contact_id = db.contact.insert(**data)
+
+        # Optional: email notification
+        try:
+            if auth.sender and getattr(settings, 'CONTACT_NOTIFICATION_EMAIL', None):
+                auth.sender.send(
+                    to=[settings.CONTACT_NOTIFICATION_EMAIL],
+                    subject=f"New Contact Submission: {data['subject']}",
+                    body=f"From: {data['name']} <{data['email']}>\n\n{data['message']}"
+                )
+                auth.sender.send(
+                    to=[data['email']],
+                    subject="Thank you for contacting Mealzi!",
+                    body=(
+                        f"Hi {data['name']},\n\n"
+                        f"Thanks for reaching out about “{data['subject']}”. "
+                        "We'll get back to you within 24 hours.\n\n"
+                        "— Mealzi Team"
+                    )
+                )
+        except Exception as mail_err:
+            logger.error(f"Email error: {mail_err}")
+
+        return {
+            "success": True,
+            "message": "Your message has been sent successfully!",
+            "id": contact_id
+        }
+    except Exception as e:
+        logger.error(f"Contact error: {e}\n{traceback.format_exc()}")
+        response.status = 500
+        return {"error": "An unexpected error occurred. Please try again later."}
+
+@action('api/contact', method=['OPTIONS'])
+def contact_options():
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return ""
-
-@action('api/auth/logout', method=["OPTIONS"])
-def auth_logout_options():
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
-    return ""
-
-@action('api/auth/user', method=["OPTIONS"])
-def auth_user_options():
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
-    return ""
-

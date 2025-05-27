@@ -1,27 +1,28 @@
-import './App.css'
+import './App.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Authentication Context
 import { AuthProvider } from './context/AuthContext.jsx';
 
-// Global components (visible on all pages)
+// Global components
 import Navbar from "./components/Navbar.jsx";
 import Footer from './components/Footer.jsx';
 
 // Page components
-import LandingPage from './pages/LandingPage'; // Assuming you've created src/pages/LandingPage.js as per the other Canvas
-import RecipeDashboard from './pages/RecipeDashboard.jsx'; // We'll define this page next
+import LandingPage from './pages/LandingPage';
+import RecipeDashboard from './pages/RecipeDashboard.jsx';
 import ContactPage from './pages/ContactPage.jsx';
-import ProtectedRoute from './components/ProtectedRoute.jsx'; // We'll create this component
+import IngredientSearch from './components/IngredientSearch.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 function App() {
   return (
     <AuthProvider>
-      <Router> {/* BrowserRouter provides routing capabilities */}
-        <div className="App flex flex-col min-h-screen"> {/* Ensure App takes full height for sticky footer */}
+      <Router>
+        <div className="App flex flex-col min-h-screen">
           <Navbar />
-          <main className="flex-grow"> {/* Main content area that will change based on route */}
-            <Routes> {/* Container for all your routes */}
+          <main className="flex-grow">
+            <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route 
                 path="/dashboard" 
@@ -32,12 +33,14 @@ function App() {
                 } 
               />
               <Route path="/contact" element={<ContactPage />} />
+              <Route path="/ingredients" element={<IngredientSearch />} />
             </Routes>
           </main>
+          <Footer />
         </div>
       </Router>
     </AuthProvider>
-  )
+  );
 }
 
-export default App
+export default App;
