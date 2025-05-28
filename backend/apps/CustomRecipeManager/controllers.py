@@ -45,6 +45,7 @@ def ingredients_search():
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     
     query = request.params.get('query', '').strip().lower()
+
     page  = int(request.params.get('page', 1))
     limit = int(request.params.get('limit', 5))
 
@@ -344,3 +345,43 @@ def contact_options():
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return ""
+
+@action('api/recipes/<recipe_id>/upload_images', method=['POST'])
+@action.uses(db, auth.user)
+
+def upload_images(recipe_id):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+
+
+    try:
+        # get the upload files from the request
+        files = request.files.getlist('upload_images')
+        if not files:
+            return dict(success=False, error="No files uploaded")
+
+        # check how many images exist for the recipe
+        existing_count = db(db.recipe_multiple_images.recipe_id == recipe_id).count()
+        available_slots = 5 - existing_count
+
+        if available_slots <= 0:
+            return dict(success=False, error="Maximum of 5 images per recipe reached")
+
+        # accept only the number of files that fit within the limit
+        files_to_upload = files[:available_slots]
+        uploaded = 0
+
+        for f in files_to_upload:
+            db.recipe_multiple_images.insert(
+                recipe_id=recipe_id,
+                multi_images=f
+            )
+            uploaded += 1
+
+
+        return dict(success=True, uploaded=uploaded, remaining=5 - (existing_count + uploaded))
+
+    except Exception as e:
+        return dict(success=False, error=str(e))
+

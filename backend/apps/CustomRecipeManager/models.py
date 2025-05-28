@@ -68,5 +68,16 @@ db.define_table(
     format='%(subject)s'
 )
 
+
+# extra credit: multiple images per recipe
+
+db.define_table(
+    'recipe_multiple_images',
+    Field('recipe_id', 'reference recipe', requires=IS_NOT_EMPTY()),
+    Field('multi_images', 'upload', requires=IS_NOT_EMPTY()),
+    auth.signature,
+    format='%(multi_images)s'
+)
+
 db.commit()
 
