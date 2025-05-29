@@ -1,0 +1,413 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import RecipeDetailsSection from '../components/RecipeDetailsSection';
+import InstructionsSection from '../components/InstructionsSection';
+import IngredientSearchInput from '../components/IngredientSearchInput';
+import SelectedIngredientsList from '../components/SelectedIngredientsList';
+import NutritionSummary from '../components/NutritionSummary';
+import apiService from '../services/api';
+
+const CreateRecipePage = () => {
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState({ text: '', type: '' });
+
+  // Recipe form state
+  const [recipeData, setRecipeData] = useState({
+    name: '',
+    type: 'Dinner',
+    description: '',
+    servings: 4,
+    image: null,
+  });
+
+  // Add image preview state
+  const [imagePreview, setImagePreview] = useState(null);
+
+  const [selectedIngredients, setSelectedIngredients] = useState([]);
+  const [instructionSteps, setInstructionSteps] = useState(['']);
+
+  const steps = [
+    { id: 'details', title: 'Recipe Details', icon: '📝' },
+    { id: 'ingredients', title: 'Ingredients', icon: '🥕' },
+    { id: 'instructions', title: 'Instructions', icon: '👨‍🍳' },
+    { id: 'review', title: 'Review & Create', icon: '✅' },
+  ];
+
+  const updateRecipeData = (field, value) => {
+    setRecipeData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const addIngredient = (ingredient, quantity) => {
+    const existingIndex = selectedIngredients.findIndex(
+      item => item.ingredient.id === ingredient.id
+    );
+
+    if (existingIndex >= 0) {
+      // Update existing ingredient
+      const updated = [...selectedIngredients];
+      updated[existingIndex] = { ingredient, quantity };
+      setSelectedIngredients(updated);
+    } else {
+      // Add new ingredient
+      setSelectedIngredients(prev => [...prev, { ingredient, quantity }]);
+    }
+  };
+
+  const removeIngredient = (ingredientId) => {
+    setSelectedIngredients(prev => 
+      prev.filter(item => item.ingredient.id !== ingredientId)
+    );
+  };
+
+  const updateIngredientQuantity = (ingredientId, newQuantity) => {
+    setSelectedIngredients(prev =>
+      prev.map(item =>
+        item.ingredient.id === ingredientId
+          ? { ...item, quantity: newQuantity }
+          : item
+      )
+    );
+  };
+
+  const addInstructionStep = () => {
+    setInstructionSteps(prev => [...prev, '']);
+  };
+
+  const updateInstructionStep = (index, value) => {
+    setInstructionSteps(prev =>
+      prev.map((step, i) => (i === index ? value : step))
+    );
+  };
+
+  const removeInstructionStep = (index) => {
+    if (instructionSteps.length > 1) {
+      setInstructionSteps(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const moveInstructionStep = (fromIndex, toIndex) => {
+    const newSteps = [...instructionSteps];
+    const [movedStep] = newSteps.splice(fromIndex, 1);
+    newSteps.splice(toIndex, 0, movedStep);
+    setInstructionSteps(newSteps);
+  };
+
+  const calculateNutrition = () => {
+    const totals = {
+      calories: 0,
+      protein: 0,
+      fat: 0,
+      carbs: 0,
+      sugar: 0,
+      fiber: 0,
+      sodium: 0,
+    };
+
+    selectedIngredients.forEach(({ ingredient, quantity }) => {
+      totals.calories += (ingredient.calories_per_unit || 0) * quantity;
+      totals.protein += (ingredient.protein_per_unit || 0) * quantity;
+      totals.fat += (ingredient.fat_per_unit || 0) * quantity;
+      totals.carbs += (ingredient.carbs_per_unit || 0) * quantity;
+      totals.sugar += (ingredient.sugar_per_unit || 0) * quantity;
+      totals.fiber += (ingredient.fiber_per_unit || 0) * quantity;
+      totals.sodium += (ingredient.sodium_per_unit || 0) * quantity;
+    });
+
+    // Calculate per serving
+    const servings = recipeData.servings || 1;
+    return {
+      total: totals,
+      perServing: {
+        calories: Math.round(totals.calories / servings),
+        protein: Math.round((totals.protein / servings) * 10) / 10,
+        fat: Math.round((totals.fat / servings) * 10) / 10,
+        carbs: Math.round((totals.carbs / servings) * 10) / 10,
+        sugar: Math.round((totals.sugar / servings) * 10) / 10,
+        fiber: Math.round((totals.fiber / servings) * 10) / 10,
+        sodium: Math.round(totals.sodium / servings),
+      },
+    };
+  };
+
+  const validateCurrentStep = () => {
+    switch (currentStep) {
+      case 0: // Details
+        return recipeData.name.trim() && recipeData.type && recipeData.description.trim();
+      case 1: // Ingredients
+        return true; // Allow skipping ingredients section
+      case 2: // Instructions
+        return instructionSteps.some(step => step.trim());
+      default:
+        return true;
+    }
+  };
+
+  const nextStep = () => {
+    if (validateCurrentStep() && currentStep < steps.length - 1) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!validateCurrentStep()) {
+      setSubmitMessage({ text: 'Please complete all required fields', type: 'error' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitMessage({ text: '', type: '' });
+
+    try {
+      const payload = {
+        name: recipeData.name,
+        type: recipeData.type,
+        description: recipeData.description,
+        servings: recipeData.servings,
+        instruction_steps: instructionSteps.filter(step => step.trim()).join('\n'), // Include instructions
+        ingredients: [] // Empty array for ingredients
+      };
+
+      const result = await apiService.createRecipe(payload);
+      
+      if (result.success) {
+        setSubmitMessage({ 
+          text: 'Recipe created successfully! Redirecting to dashboard...', 
+          type: 'success' 
+        });
+        setTimeout(() => navigate('/dashboard'), 2000);
+      } else {
+        setSubmitMessage({ text: result.message || 'Failed to create recipe', type: 'error' });
+      }
+    } catch (error) {
+      setSubmitMessage({ text: error.message || 'An error occurred', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle image change
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setRecipeData(prev => ({ ...prev, image: file }));
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <RecipeDetailsSection
+            recipeData={recipeData}
+            updateRecipeData={updateRecipeData}
+          />
+        );
+      case 1:
+        return (
+          <div className="space-y-6">
+            <IngredientSearchInput onAddIngredient={addIngredient} />
+            <SelectedIngredientsList
+              ingredients={selectedIngredients}
+              onRemoveIngredient={removeIngredient}
+              onUpdateQuantity={updateIngredientQuantity}
+            />
+          </div>
+        );
+      case 2:
+        return (
+          <InstructionsSection
+            steps={instructionSteps}
+            onAddStep={addInstructionStep}
+            onUpdateStep={updateInstructionStep}
+            onRemoveStep={removeInstructionStep}
+            onMoveStep={moveInstructionStep}
+          />
+        );
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-lg font-semibold mb-4">Recipe Summary</h3>
+              <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <p><strong>Name:</strong> {recipeData.name}</p>
+                    <p><strong>Type:</strong> {recipeData.type}</p>
+                    <p><strong>Servings:</strong> {recipeData.servings}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Description</h4>
+                    <p className="text-gray-700 bg-white p-3 rounded-md border border-gray-200">
+                      {recipeData.description}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Instructions</h4>
+                    <div className="bg-white p-4 rounded-md border border-gray-200">
+                      {instructionSteps.filter(step => step.trim()).length > 0 ? (
+                        <ol className="list-decimal list-inside space-y-2">
+                          {instructionSteps
+                            .filter(step => step.trim())
+                            .map((step, index) => (
+                              <li key={index} className="text-gray-700">
+                                {step}
+                              </li>
+                            ))}
+                        </ol>
+                      ) : (
+                        <p className="text-gray-500 italic">No instructions added</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <NutritionSummary nutrition={calculateNutrition()} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New Recipe</h1>
+          <p className="text-gray-600">Share your culinary creation with the world</p>
+        </div>
+
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
+            {steps.map((step, index) => (
+              <div
+                key={step.id}
+                className={`flex items-center ${
+                  index < steps.length - 1 ? 'flex-1' : ''
+                }`}
+              >
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium ${
+                    index <= currentStep
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-500'
+                  }`}
+                >
+                  {step.icon}
+                </div>
+                <div className="ml-2 hidden sm:block">
+                  <p
+                    className={`text-sm font-medium ${
+                      index <= currentStep ? 'text-blue-600' : 'text-gray-500'
+                    }`}
+                  >
+                    {step.title}
+                  </p>
+                </div>
+                {index < steps.length - 1 && (
+                  <div
+                    className={`flex-1 h-0.5 mx-4 ${
+                      index < currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Step Content */}
+        <motion.div
+          key={currentStep}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white rounded-lg shadow-sm p-6 mb-8"
+        >
+          {renderStepContent()}
+        </motion.div>
+
+        {/* Submit Message */}
+        {submitMessage.text && (
+          <div
+            className={`mb-4 p-4 rounded-lg ${
+              submitMessage.type === 'success'
+                ? 'bg-green-50 text-green-800 border border-green-200'
+                : 'bg-red-50 text-red-800 border border-red-200'
+            }`}
+          >
+            {submitMessage.text}
+          </div>
+        )}
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between">
+          <button
+            onClick={prevStep}
+            disabled={currentStep === 0}
+            className={`px-6 py-2 rounded-lg font-medium ${
+              currentStep === 0
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Previous
+          </button>
+
+          {currentStep < steps.length - 1 ? (
+            <button
+              onClick={nextStep}
+              disabled={!validateCurrentStep()}
+              className={`px-6 py-2 rounded-lg font-medium ${
+                validateCurrentStep()
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              Next
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !validateCurrentStep()}
+              className={`px-6 py-2 rounded-lg font-medium ${
+                isSubmitting || !validateCurrentStep()
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {isSubmitting ? 'Creating Recipe...' : 'Create Recipe'}
+            </button>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default CreateRecipePage; 

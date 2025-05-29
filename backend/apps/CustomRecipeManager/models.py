@@ -40,10 +40,10 @@ db.define_table(
     Field('name', 'string', length=100, requires=[IS_NOT_EMPTY(), IS_LENGTH(100)]),
     Field('type', 'string', requires=IS_IN_SET(['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Dessert', 'Drink'])),
     Field('description', 'text', requires=IS_LENGTH(1000)),
-    Field('image', 'upload'),
+    Field('image', 'upload', default=None),
     Field('author', 'reference auth_user'),
     Field('instruction_steps', 'text', requires=IS_NOT_EMPTY()),
-    Field('servings', 'integer', requires=IS_INT_IN_RANGE(1, 100)), 
+    Field('servings', 'integer', requires=IS_INT_IN_RANGE(1, 100)),
     auth.signature, 
     format='%(name)s'
 )

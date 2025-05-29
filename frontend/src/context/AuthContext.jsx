@@ -32,14 +32,16 @@ export const AuthProvider = ({ children }) => {
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setUser(data.user);
-        }
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setUser(data.user);
+      } else {
+        setUser(null);
       }
     } catch (error) {
       console.error('Auth check error:', error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -47,9 +49,10 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('Attempting login with:', { email });
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
-        credentials: 'include', // Include cookies for session
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -57,6 +60,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       const data = await response.json();
+      console.log('Login response:', data);
 
       if (response.ok && data.success) {
         setUser(data.user);

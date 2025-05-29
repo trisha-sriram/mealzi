@@ -31,6 +31,16 @@ from .common import (
     session, unauthenticated
 )
 from . import settings
+import datetime
+
+def set_cors_headers():
+    """Set CORS headers based on request origin"""
+    origin = request.headers.get('Origin', 'http://localhost:5173')
+    response.headers['Access-Control-Allow-Origin'] = origin
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Content-Type'] = 'application/json'
 
 # ==============================================================
 # -------------------- INGREDIENT SEARCH -----------------------
@@ -40,9 +50,7 @@ from . import settings
 @action.uses(db)
 def ingredients_search():
     """Search ingredients with pagination"""
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    set_cors_headers()
     
     query = request.params.get('query', '').strip().lower()
 
@@ -80,9 +88,7 @@ def ingredients_search():
 
 @action('api/ingredients/search', method=['OPTIONS'])
 def ingredients_search_options():
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    set_cors_headers()
     return ""
 
 # ==============================================================
@@ -93,10 +99,7 @@ def ingredients_search_options():
 @action.uses(db, session, auth)
 def auth_register():
     """Register a new user"""
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    set_cors_headers()
 
     try:
         data = request.json or {}
@@ -119,6 +122,7 @@ def auth_register():
         )
 
         user = db.auth_user[user_id]
+        auth.store_user_in_session(user.id)
         return {
             "success": True,
             "message": "Registration successful",
@@ -139,34 +143,54 @@ def auth_register():
 @action.uses(db, session, auth)
 def auth_login():
     """Log a user in"""
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    set_cors_headers()
 
     try:
         data = request.json or {}
+        print("=== LOGIN DEBUG ===")
+        print("Request headers:", dict(request.headers))
+        print("Initial session:", dict(session))
+        
         if not {'email', 'password'}.issubset(data):
             response.status = 400
             return {"error": "Missing required fields: email, password"}
 
-        user, success = auth.login(data['email'], data['password']) or (None, None)
-        if user:
-            user_dict = (user.as_dict() if hasattr(user, 'as_dict') else {
-                "id": user.id,
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name
-            })
+        print("Attempting to find user:", data['email'])
+        user = db(db.auth_user.email == data['email']).select().first()
+        print("Found user:", user is not None)
+        
+        if not user:
+            response.status = 401
+            return {"error": "Invalid email or password"}
+
+        # Validate password using py4web's built-in methods
+        from pydal.validators import CRYPT
+        crypt = CRYPT()
+        if crypt(data['password'])[0] == user.password:
+            # Use auth's session management
+            auth.store_user_in_session(user['id'])
+            
+            print("Login success: True")
+            print("User:", user)
+            print("Session after login:", dict(session))
+            print("Auth current_user:", auth.current_user)
+            print("==================")
+            
             return {
                 "success": True,
                 "message": "Login successful",
-                "user": user_dict,
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name
+                },
                 "redirect": "/dashboard"
             }
+        else:
+            response.status = 401
+            return {"error": "Invalid email or password"}
 
-        response.status = 401
-        return {"error": "Invalid email or password"}
     except Exception as e:
         logger.error(f"Login error: {e}\n{traceback.format_exc()}")
         response.status = 500
@@ -176,31 +200,31 @@ def auth_login():
 @action.uses(db, session, auth)
 def auth_logout():
     """Log a user out"""
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    set_cors_headers()
+    # Clear all session data
     session.clear()
+    auth.clear_session()
+    # Clear auth cookies
+    response.cookies['py4web_session'] = ''
+    response.cookies['py4web_session']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+    response.cookies['py4web_session']['path'] = '/'
     return {"success": True, "message": "Logout successful"}
 
 @action('api/auth/user', method=['GET'])
-@action.uses(db, session, auth)
+@action.uses(db, session, auth.user)
 def auth_user():
     """Return current user info"""
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    set_cors_headers()
 
     if auth.current_user:
         u = auth.current_user
         return {
             "success": True,
             "user": {
-                "id": u.id,
-                "email": u.email,
-                "first_name": u.first_name,
-                "last_name": u.last_name
+                "id": u['id'],
+                "email": u['email'],
+                "first_name": u['first_name'],
+                "last_name": u['last_name']
             }
         }
     response.status = 401
@@ -210,10 +234,7 @@ def auth_user():
 for _path in ('register', 'login', 'logout', 'user'):
     @action(f'api/auth/{_path}', method=['OPTIONS'])
     def _auth_opts():
-        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        set_cors_headers()
         return ""
 
 # ==============================================================
@@ -223,58 +244,98 @@ for _path in ('register', 'login', 'logout', 'user'):
 @action('api/recipes', method=['POST'])
 @action.uses(db, session, auth.user)
 def create_recipe():
-    """Create a new recipe (authenticated)"""
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    set_cors_headers()
+
+    print("=== CREATE RECIPE DEBUG ===")
+    print("Request headers:", dict(request.headers))
+    print("Session in create_recipe:", dict(session))
+    print("Auth current_user:", auth.current_user)
+    print("=========================")
+
+    if not auth.current_user:
+        response.status = 401
+        return {"error": "Not authenticated", "session": dict(session)}
 
     try:
-        data = request.json or {}
-        required = {'name', 'type', 'description', 'instruction_steps', 'servings'}
-        if not required.issubset(data):
+        data = request.json
+        required_fields = {'name', 'type', 'description', 'instruction_steps', 'servings'}
+        
+        if not data or not all(field in data for field in required_fields):
             response.status = 400
-            return {"error": "Missing required fields"}
-
+            return {"error": f"Missing required fields. Required: {', '.join(required_fields)}"}
+            
+        # Validate recipe type
+        valid_types = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Dessert', 'Drink']
+        if data['type'] not in valid_types:
+            response.status = 400
+            return {"error": f"Invalid recipe type. Must be one of: {', '.join(valid_types)}"}
+            
+        # Create the recipe
         recipe_id = db.recipe.insert(
             name=data['name'],
             type=data['type'],
             description=data['description'],
             instruction_steps=data['instruction_steps'],
             servings=data['servings'],
-            author=auth.current_user.id
+            author=auth.current_user['id'],
+            created_on=datetime.datetime.utcnow()
         )
-
-        for ing in data.get('ingredients', []):
-            db.recipe_ingredient.insert(
-                recipe_id=recipe_id,
-                ingredient_id=ing['ingredient_id'],
-                quantity_per_serving=ing['quantity_per_serving']
-            )
-
+        
+        # Get the created recipe
+        recipe = db.recipe[recipe_id]
+        
         return {
             "success": True,
-            "recipe_id": recipe_id,
-            "message": "Recipe created successfully"
+            "message": "Recipe created successfully",
+            "recipe": {
+                "id": recipe.id,
+                "name": recipe.name,
+                "type": recipe.type,
+                "description": recipe.description,
+                "instruction_steps": recipe.instruction_steps,
+                "servings": recipe.servings,
+                "author": recipe.author
+            }
         }
+        
     except Exception as e:
         logger.error(f"Recipe creation error: {e}\n{traceback.format_exc()}")
         response.status = 500
-        return {"error": "Failed to create recipe"}
+        return {"error": "Failed to create recipe. Please try again."}
 
 @action('api/recipes', method=['GET'])
 @action.uses(db, session, auth.user)
 def get_recipes():
     """Return recipes authored by current user"""
-    response.headers['Access-Control-Allow-Origin']   = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods']  = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers']  = 'Content-Type'
+    set_cors_headers()
 
     try:
-        recipes = db(db.recipe.author == auth.current_user.id).select(
+        # Get recipes with author details
+        recipes = db(db.recipe.author == auth.current_user['id']).select(
+            db.recipe.ALL,
+            db.auth_user.first_name,
+            db.auth_user.last_name,
+            left=db.auth_user.on(db.recipe.author == db.auth_user.id),
             orderby=~db.recipe.created_on
         ).as_list()
 
-        return {"success": True, "recipes": recipes}
+        # Format the recipes
+        formatted_recipes = []
+        for recipe in recipes:
+            formatted_recipe = {
+                'id': recipe['recipe']['id'],
+                'name': recipe['recipe']['name'],
+                'type': recipe['recipe']['type'],
+                'description': recipe['recipe']['description'],
+                'instruction_steps': recipe['recipe']['instruction_steps'],
+                'servings': recipe['recipe']['servings'],
+                'created_on': recipe['recipe']['created_on'],
+                'author': recipe['recipe']['author'],
+                'author_name': f"{recipe['auth_user']['first_name']} {recipe['auth_user']['last_name']}"
+            }
+            formatted_recipes.append(formatted_recipe)
+
+        return {"success": True, "recipes": formatted_recipes}
     except Exception as e:
         logger.error(f"Get recipes error: {e}\n{traceback.format_exc()}")
         response.status = 500
@@ -282,9 +343,50 @@ def get_recipes():
 
 @action('api/recipes', method=['OPTIONS'])
 def recipes_options():
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    set_cors_headers()
+    return ""
+
+@action('api/recipes/public', method=['GET'])
+@action.uses(db, session)
+def get_public_recipes():
+    """Return all public recipes"""
+    set_cors_headers()
+
+    try:
+        # Get all recipes with author details
+        recipes = db().select(
+            db.recipe.ALL,
+            db.auth_user.first_name,
+            db.auth_user.last_name,
+            left=db.auth_user.on(db.recipe.author == db.auth_user.id),
+            orderby=~db.recipe.created_on
+        ).as_list()
+
+        # Format the recipes
+        formatted_recipes = []
+        for recipe in recipes:
+            formatted_recipe = {
+                'id': recipe['recipe']['id'],
+                'name': recipe['recipe']['name'],
+                'type': recipe['recipe']['type'],
+                'description': recipe['recipe']['description'],
+                'instruction_steps': recipe['recipe']['instruction_steps'],
+                'servings': recipe['recipe']['servings'],
+                'created_on': recipe['recipe']['created_on'],
+                'author': recipe['recipe']['author'],
+                'author_name': f"{recipe['auth_user']['first_name']} {recipe['auth_user']['last_name']}"
+            }
+            formatted_recipes.append(formatted_recipe)
+
+        return {"success": True, "recipes": formatted_recipes}
+    except Exception as e:
+        logger.error(f"Get public recipes error: {e}\n{traceback.format_exc()}")
+        response.status = 500
+        return {"error": "Failed to get public recipes"}
+
+@action('api/recipes/public', method=['OPTIONS'])
+def public_recipes_options():
+    set_cors_headers()
     return ""
 
 # ==============================================================
@@ -295,9 +397,7 @@ def recipes_options():
 @action.uses(db)
 def submit_contact():
     """Contact-us form"""
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    set_cors_headers()
 
     try:
         data = request.json or {}
@@ -321,7 +421,7 @@ def submit_contact():
                     subject="Thank you for contacting Mealzi!",
                     body=(
                         f"Hi {data['name']},\n\n"
-                        f"Thanks for reaching out about “{data['subject']}”. "
+                        f"Thanks for reaching out about \"{data['subject']}\". "
                         "We'll get back to you within 24 hours.\n\n"
                         "— Mealzi Team"
                     )
@@ -341,6 +441,10 @@ def submit_contact():
 
 @action('api/contact', method=['OPTIONS'])
 def contact_options():
+
+    set_cors_headers()
+    return ""
+
     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
@@ -384,4 +488,5 @@ def upload_images(recipe_id):
 
     except Exception as e:
         return dict(success=False, error=str(e))
+
 

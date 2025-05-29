@@ -12,6 +12,7 @@ import Footer from './components/Footer.jsx';
 import LandingPage from './pages/LandingPage';
 import RecipeDashboard from './pages/RecipeDashboard.jsx';
 import ContactPage from './pages/ContactPage.jsx';
+import CreateRecipePage from './pages/CreateRecipePage.jsx';
 import IngredientSearch from './components/IngredientSearch.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
@@ -29,6 +30,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <RecipeDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/create-recipe" 
+                element={
+                  <ProtectedRoute>
+                    <CreateRecipePage />
                   </ProtectedRoute>
                 } 
               />

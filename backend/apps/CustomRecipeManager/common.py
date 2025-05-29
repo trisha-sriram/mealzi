@@ -45,6 +45,9 @@ T = Translator(settings.T_FOLDER)
 if settings.SESSION_TYPE == "cookies":
     session = Session(secret=settings.SESSION_SECRET_KEY)
 
+elif settings.SESSION_TYPE == "memory":
+    session = Session(secret=settings.SESSION_SECRET_KEY)
+
 elif settings.SESSION_TYPE == "redis":
     import redis
 
@@ -80,7 +83,7 @@ auth.param.registration_requires_confirmation = settings.VERIFY_EMAIL
 auth.param.registration_requires_approval = settings.REQUIRES_APPROVAL
 auth.param.login_after_registration = settings.LOGIN_AFTER_REGISTRATION
 auth.param.allowed_actions = settings.ALLOWED_ACTIONS
-auth.param.login_expiration_time = 3600
+auth.param.login_expiration_time = settings.SESSION_EXPIRATION
 auth.param.password_complexity = {"entropy": settings.PASSWORD_ENTROPY}
 auth.param.block_previous_password_num = 3
 auth.param.default_login_enabled = settings.DEFAULT_LOGIN_ENABLED

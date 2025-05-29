@@ -241,11 +241,7 @@ function RecipeForm({ showModal, onClose }) {
                       <label htmlFor="descriptionModal" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                       <textarea id="descriptionModal" value={description} onChange={(e) => setDescription(e.target.value)} rows="3" className="w-full py-2.5 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="A short summary..."></textarea>
                     </div>
-                    <div>
-                      <label htmlFor="imageModal" className="block text-sm font-medium text-gray-700 mb-1">Recipe Image</label>
-                      <input type="file" id="imageModal" onChange={handleImageChange} accept="image/*" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-lime-100 file:text-lime-700 hover:file:bg-lime-200"/>
-                      {imagePreview && <motion.img src={imagePreview} alt="Preview" className="mt-3 rounded-lg max-h-40 object-cover shadow-sm" initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}} />}
-                    </div>
+                 
                   </div>
                 </motion.div>
 

@@ -6,6 +6,7 @@ This is an optional file that defined app level settings such as:
 This file is provided as an example:
 """
 import os
+import secrets
 
 from py4web.core import required_folder
 
@@ -31,7 +32,7 @@ STATIC_FOLDER = required_folder(APP_FOLDER, "static")
 UPLOAD_FOLDER = required_folder(APP_FOLDER, "uploads")
 
 # send verification email on registration
-VERIFY_EMAIL = MODE != "development"
+VERIFY_EMAIL = False
 
 # complexity of the password 0: no constraints, 50: safe!
 PASSWORD_ENTROPY = 0 if MODE == "development" else 50
@@ -41,7 +42,7 @@ REQUIRES_APPROVAL = False
 
 # auto login after registration
 # requires False VERIFY_EMAIL & REQUIRES_APPROVAL
-LOGIN_AFTER_REGISTRATION = False
+LOGIN_AFTER_REGISTRATION = True
 
 # ALLOWED_ACTIONS in API / default Forms:
 # ["all"]
@@ -62,8 +63,16 @@ SMTP_TLS = True  # Enable STARTTLS for secure connection
 CONTACT_NOTIFICATION_EMAIL = os.environ.get("CONTACT_NOTIFICATION_EMAIL", "mealzigroup@gmail.com")
 
 # session settings
-SESSION_TYPE = "cookies"
-SESSION_SECRET_KEY = None  # or replace with your own secret
+SESSION_TYPE = "memory"  # Store sessions in memory only
+SESSION_SECRET_KEY = secrets.token_hex(32)  # Generate random key on each server start
+SESSION_EXPIRATION = 3600  # 1 hour in seconds
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_NAME = "py4web_session"
+SESSION_COOKIE_DOMAIN = None
+SESSION_COOKIE_PATH = "/"
+SESSION_COOKIE_EXPIRES = 3600  # 1 hour in seconds
 MEMCACHE_CLIENTS = ["127.0.0.1:11211"]
 REDIS_SERVER = "localhost:6379"
 
