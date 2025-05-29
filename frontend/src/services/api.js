@@ -66,13 +66,35 @@ class ApiService {
 
   // Recipe endpoints
   async createRecipe(recipeData) {
-    return this.request('/api/recipes', {
-      method: 'POST',
-      body: JSON.stringify(recipeData),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    // If recipeData.image is a File, use FormData
+    if (recipeData.image && recipeData.image instanceof File) {
+      const formData = new FormData();
+      for (const key in recipeData) {
+        if (recipeData[key] !== undefined && recipeData[key] !== null) {
+          if (key === 'ingredients' && Array.isArray(recipeData[key])) {
+            formData.append(key, JSON.stringify(recipeData[key]));
+          } else if (key === 'instruction_steps' && Array.isArray(recipeData[key])) {
+            formData.append(key, recipeData[key].join('\n'));
+          } else {
+            formData.append(key, recipeData[key]);
+          }
+        }
+      }
+      return this.request('/api/recipes', {
+        method: 'POST',
+        body: formData,
+        headers: {}, // Let browser set Content-Type
+      });
+    } else {
+      // Fallback to JSON
+      return this.request('/api/recipes', {
+        method: 'POST',
+        body: JSON.stringify(recipeData),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    }
   }
 
   async getUserRecipes() {

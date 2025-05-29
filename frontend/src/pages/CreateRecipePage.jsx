@@ -173,7 +173,8 @@ const CreateRecipePage = () => {
         description: recipeData.description,
         servings: recipeData.servings,
         instruction_steps: instructionSteps.filter(step => step.trim()).join('\n'), // Include instructions
-        ingredients: [] // Empty array for ingredients
+        ingredients: [], // Empty array for ingredients
+        image: recipeData.image // Include image in payload
       };
 
       const result = await apiService.createRecipe(payload);

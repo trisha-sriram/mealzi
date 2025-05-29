@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api';
 
+const API_BASE_URL = apiService.baseURL;
+
 function RecipeDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -94,6 +96,16 @@ function RecipeDashboard() {
       )}
       
       <div className="relative h-48 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-600 overflow-hidden">
+        {/* Recipe Image */}
+        {recipe.image && (
+          <img
+            src={`${API_BASE_URL}/uploads/${recipe.image}`}
+            alt={recipe.name}
+            className="absolute inset-0 w-full h-full object-cover z-0"
+            style={{ opacity: 0.7 }}
+          />
+        )}
+        
         <div className="absolute inset-0 bg-black bg-opacity-10"></div>
         
         <motion.div
