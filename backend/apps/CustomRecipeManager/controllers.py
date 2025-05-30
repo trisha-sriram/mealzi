@@ -92,6 +92,75 @@ def ingredients_search_options():
     return ""
 
 # ==============================================================
+# ------------------- ADD INGREDIENT ---------------------------
+# ==============================================================
+
+@action('api/ingredients', method=['POST'])
+@action.uses(db, session, auth.user)
+def add_ingredient():
+    set_cors_headers()
+    
+    if not auth.current_user:
+        response.status = 401
+        return {"error": "Not authenticated"}
+    
+    try:
+        data = request.json or {}
+        required_fields = {'name', 'unit', 'description', 'calories_per_unit'}
+        missing = [f for f in required_fields if not data.get(f)]
+        if missing:
+            response.status = 400
+            return {"error": f"Missing required fields: {', '.join(missing)}"}
+        if db(db.ingredient.name.lower() == data['name'].strip().lower()).count():
+            response.status = 400
+            return {"error": "Ingredient with this name already exists"}
+       
+        ingredient_id = db.ingredient.insert(
+            name=data['name'].strip(),
+            unit=data['unit'],
+            description=data['description'],
+            calories_per_unit=float(data.get('calories_per_unit', 0)),
+            protein_per_unit=float(data.get('protein_per_unit', 0)),
+            fat_per_unit=float(data.get('fat_per_unit', 0)),
+            carbs_per_unit=float(data.get('carbs_per_unit', 0)),
+            sugar_per_unit=float(data.get('sugar_per_unit', 0)),
+            fiber_per_unit=float(data.get('fiber_per_unit', 0)),
+            sodium_per_unit=float(data.get('sodium_per_unit', 0)),
+            created_on=datetime.datetime.utcnow(),
+            created_by=auth.current_user['id']
+        )
+        
+        ingredient = db.ingredient[ingredient_id]
+        response.status = 201
+        return {
+            "success": True,
+            "message": "Ingredient created successfully",
+            "ingredient": {
+                "id": ingredient.id,
+                "name": ingredient.name,
+                "unit": ingredient.unit,
+                "description": ingredient.description,
+                "calories_per_unit": ingredient.calories_per_unit,
+                "protein_per_unit": ingredient.protein_per_unit,
+                "fat_per_unit": ingredient.fat_per_unit,
+                "carbs_per_unit": ingredient.carbs_per_unit,
+                "sugar_per_unit": ingredient.sugar_per_unit,
+                "fiber_per_unit": ingredient.fiber_per_unit,
+                "sodium_per_unit": ingredient.sodium_per_unit
+            }
+        }
+    
+    except Exception as e:
+        logger.error(f"Ingredient creation error: {e}\n{traceback.format_exc()}")
+        response.status = 500
+        return {"error": "Failed to create ingredient. Please try again."}
+
+@action('api/ingredients', method=['OPTIONS'])
+def ingredients_options():
+    set_cors_headers()
+    return ""
+
+# ==============================================================
 # ------------------- AUTHENTICATION API -----------------------
 # ==============================================================
 
@@ -819,5 +888,6 @@ def import_themealdb():
 def import_themealdb_options():
     set_cors_headers()
     return ""
+
 
 
