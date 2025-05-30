@@ -430,6 +430,7 @@ def get_recipes():
                 'description': recipe['recipe']['description'],
                 'instruction_steps': recipe['recipe']['instruction_steps'],
                 'servings': recipe['recipe']['servings'],
+                'image': recipe['recipe']['image'],
                 'created_on': recipe['recipe']['created_on'],
                 'author': recipe['recipe']['author'],
                 'author_name': f"{recipe['auth_user']['first_name']} {recipe['auth_user']['last_name']}"
