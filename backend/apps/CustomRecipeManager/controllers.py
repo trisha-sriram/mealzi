@@ -351,6 +351,15 @@ def create_recipe():
             created_on=datetime.datetime.utcnow()
         )
         
+        # Save ingredients to recipe_ingredient table
+        ingredients = data.get('ingredients', [])
+        for ing in ingredients:
+            db.recipe_ingredient.insert(
+                recipe_id=recipe_id,
+                ingredient_id=ing['id'],
+                quantity_per_serving=ing.get('quantity_per_serving', 1)
+            )
+        
         # Get the created recipe
         recipe = db.recipe[recipe_id]
         
