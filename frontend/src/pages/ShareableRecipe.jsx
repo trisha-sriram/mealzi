@@ -126,7 +126,7 @@ const ShareableRecipe = () => {
           <div className="relative">
             {recipe.image ? (
               <img
-                src={`${apiService.baseURL}/download/${recipe.image}`}
+                src={`${apiService.baseURL}/uploads/${recipe.image}`}
                 alt={recipe.name}
                 className="w-full h-64 object-cover"
               />

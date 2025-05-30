@@ -32,6 +32,7 @@ from .common import (
 )
 from . import settings
 import datetime
+import os
 
 def set_cors_headers():
     """Set CORS headers based on request origin"""
@@ -327,7 +328,35 @@ def create_recipe():
         return {"error": "Not authenticated", "session": dict(session)}
 
     try:
-        data = request.json
+        # Handle both JSON and multipart form data
+        if request.headers.get('content-type', '').startswith('multipart/form-data'):
+            data = {}
+            # Get form fields
+            for key in request.forms:
+                if key == 'ingredients':
+                    try:
+                        data[key] = json.loads(request.forms[key])
+                    except:
+                        data[key] = []
+                else:
+                    data[key] = request.forms[key]
+            
+            # Handle image upload
+            if 'image' in request.files:
+                image_file = request.files['image']
+                if image_file:
+                    # Save the image in the existing uploads folder inside backend/apps/CustomRecipeManager/uploads
+                    uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
+                    os.makedirs(uploads_dir, exist_ok=True)
+                    filename = f"recipe_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.jpg"
+                    image_path = os.path.join(uploads_dir, filename)
+                    image_file.save(image_path)
+                    data['image'] = filename
+        else:
+            data = request.json
+
+        print("Received data:", data)  # Debug print
+
         required_fields = {'name', 'type', 'description', 'instruction_steps', 'servings'}
         
         if not data or not all(field in data for field in required_fields):
@@ -347,6 +376,7 @@ def create_recipe():
             description=data['description'],
             instruction_steps=data['instruction_steps'],
             servings=data['servings'],
+            image=data.get('image'),  # Optional image field
             author=auth.current_user['id'],
             created_on=datetime.datetime.utcnow()
         )
@@ -364,6 +394,7 @@ def create_recipe():
                 "description": recipe.description,
                 "instruction_steps": recipe.instruction_steps,
                 "servings": recipe.servings,
+                "image": recipe.image,
                 "author": recipe.author
             }
         }
@@ -889,6 +920,21 @@ def import_themealdb():
 def import_themealdb_options():
     set_cors_headers()
     return ""
+
+@action('uploads/<filename>')
+def serve_upload(filename):
+    uploads_folder = os.path.join(os.path.dirname(__file__), 'uploads')
+    file_path = os.path.join(uploads_folder, filename)
+    if not os.path.isfile(file_path):
+        response.status = 404
+        return "File not found"
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(file_path)
+    if not content_type:
+        content_type = 'application/octet-stream'
+    response.headers['Content-Type'] = content_type
+    with open(file_path, 'rb') as f:
+        return f.read()
 
 
 
