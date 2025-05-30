@@ -596,4 +596,228 @@ def upload_images(recipe_id):
     except Exception as e:
         return dict(success=False, error=str(e))
 
+# ==============================================================
+# ------------------ THEMEALDB IMPORT ENDPOINT ----------------
+# ==============================================================
+
+@action('api/admin/import-themealdb', method=['POST'])
+@action.uses(db, session, auth.user)
+def import_themealdb():
+    """
+    Admin-only endpoint to import recipes from TheMealDB API
+    This should only be run once to populate the database
+    """
+    set_cors_headers()
+    
+    # Check if user is admin (you can modify this check based on your admin logic)
+    if not auth.current_user or auth.current_user.get('email') != 'admin@example.com':
+        response.status = 403
+        return {"error": "Admin access required"}
+    
+    try:
+        import requests
+        import json
+        import time
+        from datetime import datetime
+        
+        # Check if import has already been done
+        existing_recipes = db(db.recipe.description.like('%TheMealDB%')).count()
+        if existing_recipes > 0:
+            return {
+                "success": False, 
+                "message": f"Import already completed. Found {existing_recipes} TheMealDB recipes in database.",
+                "recipes_imported": 0,
+                "ingredients_imported": 0
+            }
+        
+        recipes_imported = 0
+        ingredients_imported = 0
+        errors = []
+        
+        # TheMealDB API endpoints
+        THEMEALDB_BASE = "https://www.themealdb.com/api/json/v1/1"
+        
+        # First, import ingredients from TheMealDB
+        print("Fetching ingredients from TheMealDB...")
+        try:
+            ingredients_response = requests.get(f"{THEMEALDB_BASE}/list.php?i=list", timeout=10)
+            if ingredients_response.status_code == 200:
+                ingredients_data = ingredients_response.json()
+                
+                for ingredient_item in ingredients_data.get('meals', [])[:50]:  # Limit to 50 ingredients
+                    ingredient_name = ingredient_item.get('strIngredient')
+                    if ingredient_name and ingredient_name.strip():
+                        # Check if ingredient already exists
+                        existing = db(db.ingredient.name.ilike(ingredient_name.strip())).select().first()
+                        if not existing:
+                            # Create new ingredient with default values
+                            db.ingredient.insert(
+                                name=ingredient_name.strip(),
+                                unit='g',  # Default unit
+                                description=f'Ingredient imported from TheMealDB',
+                                calories_per_unit=50,  # Default calories
+                                protein_per_unit=2,    # Default protein
+                                fat_per_unit=1,       # Default fat
+                                carbs_per_unit=10,    # Default carbs
+                                sugar_per_unit=2,     # Default sugar
+                                fiber_per_unit=1,     # Default fiber
+                                sodium_per_unit=5     # Default sodium
+                            )
+                            ingredients_imported += 1
+                            
+                    time.sleep(0.1)  # Rate limiting
+                    
+        except Exception as e:
+            errors.append(f"Error importing ingredients: {str(e)}")
+        
+        # Get categories to fetch recipes from different categories
+        categories = ['Beef', 'Chicken', 'Dessert', 'Lamb', 'Pasta', 'Pork', 'Seafood', 'Vegetarian']
+        
+        for category in categories:
+            try:
+                print(f"Fetching {category} recipes...")
+                category_response = requests.get(f"{THEMEALDB_BASE}/filter.php?c={category}", timeout=10)
+                
+                if category_response.status_code == 200:
+                    category_data = category_response.json()
+                    meals = category_data.get('meals', [])[:5]  # Limit to 5 recipes per category
+                    
+                    for meal in meals:
+                        meal_id = meal.get('idMeal')
+                        if meal_id:
+                            try:
+                                # Get detailed recipe information
+                                detail_response = requests.get(f"{THEMEALDB_BASE}/lookup.php?i={meal_id}", timeout=10)
+                                if detail_response.status_code == 200:
+                                    detail_data = detail_response.json()
+                                    recipe_detail = detail_data.get('meals', [{}])[0]
+                                    
+                                    if recipe_detail:
+                                        # Extract recipe data
+                                        recipe_name = recipe_detail.get('strMeal', '').strip()
+                                        recipe_category = recipe_detail.get('strCategory', 'Dinner')
+                                        recipe_instructions = recipe_detail.get('strInstructions', '').strip()
+                                        recipe_image = recipe_detail.get('strMealThumb', '')
+                                        
+                                        # Map TheMealDB categories to our categories
+                                        category_mapping = {
+                                            'Beef': 'Dinner',
+                                            'Chicken': 'Dinner', 
+                                            'Dessert': 'Dessert',
+                                            'Lamb': 'Dinner',
+                                            'Pasta': 'Dinner',
+                                            'Pork': 'Dinner',
+                                            'Seafood': 'Dinner',
+                                            'Vegetarian': 'Lunch',
+                                            'Breakfast': 'Breakfast'
+                                        }
+                                        
+                                        mapped_category = category_mapping.get(recipe_category, 'Dinner')
+                                        
+                                        if recipe_name and recipe_instructions:
+                                            # Check if recipe already exists
+                                            existing_recipe = db(db.recipe.name.ilike(recipe_name)).select().first()
+                                            if not existing_recipe:
+                                                # Create admin user if doesn't exist
+                                                admin_user = db(db.auth_user.email == 'admin@themealdb.com').select().first()
+                                                if not admin_user:
+                                                    admin_user_id = db.auth_user.insert(
+                                                        first_name='TheMealDB',
+                                                        last_name='Admin',
+                                                        email='admin@themealdb.com',
+                                                        password='dummy_password'
+                                                    )
+                                                else:
+                                                    admin_user_id = admin_user.id
+                                                
+                                                # Create recipe
+                                                recipe_id = db.recipe.insert(
+                                                    name=recipe_name,
+                                                    type=mapped_category,
+                                                    description=f"Delicious {recipe_name} recipe imported from TheMealDB. {recipe_category} cuisine.",
+                                                    instruction_steps=recipe_instructions,
+                                                    servings=4,  # Default servings
+                                                    author=admin_user_id,
+                                                    created_on=datetime.utcnow()
+                                                )
+                                                
+                                                # Extract and add ingredients
+                                                for i in range(1, 21):  # TheMealDB has up to 20 ingredients
+                                                    ingredient_name = recipe_detail.get(f'strIngredient{i}', '').strip()
+                                                    ingredient_measure = recipe_detail.get(f'strMeasure{i}', '').strip()
+                                                    
+                                                    if ingredient_name and ingredient_measure:
+                                                        # Find or create ingredient
+                                                        ingredient = db(db.ingredient.name.ilike(ingredient_name)).select().first()
+                                                        if not ingredient:
+                                                            ingredient_id = db.ingredient.insert(
+                                                                name=ingredient_name,
+                                                                unit='g',
+                                                                description=f'Ingredient from TheMealDB recipe: {recipe_name}',
+                                                                calories_per_unit=50,
+                                                                protein_per_unit=2,
+                                                                fat_per_unit=1,
+                                                                carbs_per_unit=10,
+                                                                sugar_per_unit=2,
+                                                                fiber_per_unit=1,
+                                                                sodium_per_unit=5
+                                                            )
+                                                            ingredients_imported += 1
+                                                        else:
+                                                            ingredient_id = ingredient.id
+                                                        
+                                                        # Parse quantity (simple parsing)
+                                                        quantity = 1.0
+                                                        try:
+                                                            # Extract numbers from measure string
+                                                            import re
+                                                            numbers = re.findall(r'\d+\.?\d*', ingredient_measure)
+                                                            if numbers:
+                                                                quantity = float(numbers[0])
+                                                        except:
+                                                            quantity = 1.0
+                                                        
+                                                        # Add ingredient to recipe
+                                                        db.recipe_ingredient.insert(
+                                                            recipe_id=recipe_id,
+                                                            ingredient_id=ingredient_id,
+                                                            quantity_per_serving=quantity
+                                                        )
+                                                
+                                                recipes_imported += 1
+                                                print(f"Imported recipe: {recipe_name}")
+                                                
+                                time.sleep(0.5)  # Rate limiting between detailed requests
+                                
+                            except Exception as e:
+                                errors.append(f"Error importing recipe {meal_id}: {str(e)}")
+                                continue
+                                
+                time.sleep(1)  # Rate limiting between categories
+                
+            except Exception as e:
+                errors.append(f"Error fetching {category} recipes: {str(e)}")
+                continue
+        
+        # Commit all changes
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Successfully imported {recipes_imported} recipes and {ingredients_imported} ingredients from TheMealDB",
+            "recipes_imported": recipes_imported,
+            "ingredients_imported": ingredients_imported,
+            "errors": errors[:10]  # Limit errors shown
+        }
+        
+    except Exception as e:
+        logger.error(f"TheMealDB import error: {e}\n{traceback.format_exc()}")
+        response.status = 500
+        return {"error": f"Import failed: {str(e)}"}
+
+@action('api/admin/import-themealdb', method=['OPTIONS'])
+def import_themealdb_options():
+    set_cors_headers()
+    return ""
+
 
