@@ -173,7 +173,10 @@ const CreateRecipePage = () => {
         description: recipeData.description,
         servings: recipeData.servings,
         instruction_steps: instructionSteps.filter(step => step.trim()).join('\n'), // Include instructions
-        ingredients: [], // Empty array for ingredients
+        ingredients: selectedIngredients.map(item => ({
+          id: item.ingredient.id,
+          quantity_per_serving: item.quantity
+        })),
         image: recipeData.image // Include image in payload
       };
 
