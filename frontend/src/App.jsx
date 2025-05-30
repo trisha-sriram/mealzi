@@ -15,6 +15,7 @@ import ContactPage from './pages/ContactPage.jsx';
 import CreateRecipePage from './pages/CreateRecipePage.jsx';
 import IngredientSearch from './components/IngredientSearch.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import PublicRecipes from './pages/PublicRecipes.jsx';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <main className="flex-grow">
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/recipes" element={<PublicRecipes />} />
               <Route 
                 path="/dashboard" 
                 element={

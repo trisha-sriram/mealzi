@@ -84,3 +84,15 @@ CREATE TABLE "contact"(
     "is_active" CHAR(1)
 );
 success!
+timestamp: 2025-05-29T15:41:13.797765
+CREATE TABLE "recipe_multiple_images"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "recipe_id" INTEGER REFERENCES "recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "multi_images" CHAR(512),
+    "created_on" TIMESTAMP,
+    "created_by" INTEGER REFERENCES "auth_user" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "modified_on" TIMESTAMP,
+    "modified_by" INTEGER REFERENCES "auth_user" ("id") ON DELETE CASCADE ON UPDATE CASCADE  ,
+    "is_active" CHAR(1)
+);
+success!

@@ -1,6 +1,6 @@
 // src/pages/RecipeDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api';
@@ -11,10 +11,8 @@ function RecipeDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [userRecipes, setUserRecipes] = useState([]);
-  const [publicRecipes, setPublicRecipes] = useState([]);
   const [recipeOfTheDay, setRecipeOfTheDay] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('my-recipes');
   const [floatingElements, setFloatingElements] = useState([]);
 
   // Subtle floating elements animation
@@ -50,16 +48,8 @@ function RecipeDashboard() {
       // Set user recipes directly from the response
       setUserRecipes(userResponse.recipes || []);
       
-      // Load public recipes separately
-      const publicResponse = await apiService.getPublicRecipes().catch((error) => {
-        console.error('Error loading public recipes:', error);
-        return { success: false, recipes: [] };
-      });
-      
-      setPublicRecipes(publicResponse.recipes || []);
-      
       // Set recipe of the day from all recipes
-      const allRecipes = [...(userResponse.recipes || []), ...(publicResponse.recipes || [])];
+      const allRecipes = userResponse.recipes || [];
       if (allRecipes.length > 0) {
         const randomRecipe = allRecipes[Math.floor(Math.random() * allRecipes.length)];
         setRecipeOfTheDay(randomRecipe);
@@ -265,10 +255,10 @@ function RecipeDashboard() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setActiveTab('discover')}
+                onClick={() => navigate('/recipes')}
                 className="border-2 border-white text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-white hover:text-emerald-600 transition-all duration-200"
               >
-                🌟 Discover Recipes
+                🌟 Public Recipes
               </motion.button>
             </div>
           </motion.div>
@@ -321,124 +311,59 @@ function RecipeDashboard() {
           />
         </motion.div>
 
-        {/* Tabs */}
-        <div className="flex space-x-1 bg-white p-1 rounded-2xl mb-8 max-w-md mx-auto shadow-sm">
-          {[
-            { id: 'my-recipes', label: 'My Recipes', icon: '👨‍🍳' },
-            { id: 'discover', label: 'Discover', icon: '🌟' }
-          ].map((tab) => (
+        {/* Your Recipe Collection */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-emerald-800">Your Recipe Collection</h2>
             <motion.button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
-                activeTab === tab.id
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'text-gray-600 hover:text-emerald-600'
-              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCreateRecipe}
+              className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-emerald-600 transition-all duration-200 shadow-sm"
             >
-              {tab.icon} {tab.label}
+              + Add Recipe
             </motion.button>
-          ))}
-        </div>
+          </div>
 
-        {/* Content */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'my-recipes' ? (
-            <motion.div
-              key="my-recipes"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-3xl font-bold text-emerald-800">Your Recipe Collection</h2>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleCreateRecipe}
-                  className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-emerald-600 transition-all duration-200 shadow-sm"
-                >
-                  + Add Recipe
-                </motion.button>
-              </div>
-
-              {userRecipes.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {userRecipes.map((recipe, index) => (
-                    <motion.div
-                      key={recipe.id}
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <RecipeCard recipe={recipe} isUserRecipe={true} />
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
+          {userRecipes.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {userRecipes.map((recipe, index) => (
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-16 bg-white rounded-2xl shadow-sm"
+                  key={recipe.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
                 >
-                  <div className="text-6xl mb-6">🍳</div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-4">No recipes yet!</h3>
-                  <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                    Start your culinary journey by creating your first recipe. Share your favorite dishes with the world!
-                  </p>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleCreateRecipe}
-                    className="bg-emerald-500 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-emerald-600 transition-all duration-200 shadow-lg"
-                  >
-                    Create Your First Recipe ✨
-                  </motion.button>
+                  <RecipeCard recipe={recipe} isUserRecipe={true} />
                 </motion.div>
-              )}
-            </motion.div>
+              ))}
+            </div>
           ) : (
             <motion.div
-              key="discover"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-16 bg-white rounded-2xl shadow-sm"
             >
-              <h2 className="text-3xl font-bold text-emerald-800 mb-8 text-center">Discover Amazing Recipes</h2>
-              
-              {publicRecipes.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {publicRecipes.map((recipe, index) => (
-                    <motion.div
-                      key={recipe.id}
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <RecipeCard recipe={recipe} isUserRecipe={false} />
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-16 bg-white rounded-2xl shadow-sm"
-                >
-                  <div className="text-6xl mb-6">🌟</div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-4">No public recipes yet!</h3>
-                  <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                    Be the first to share a recipe with the community!
-                  </p>
-                </motion.div>
-              )}
+              <div className="text-6xl mb-6">🍳</div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">No recipes yet!</h3>
+              <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                Start your culinary journey by creating your first recipe. Share your favorite dishes with the world!
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCreateRecipe}
+                className="bg-emerald-500 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-emerald-600 transition-all duration-200 shadow-lg"
+              >
+                Create Your First Recipe ✨
+              </motion.button>
             </motion.div>
           )}
-        </AnimatePresence>
+        </motion.div>
       </div>
     </div>
   );

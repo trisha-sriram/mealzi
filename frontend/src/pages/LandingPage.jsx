@@ -18,7 +18,6 @@ function LandingPage() {
       <AboutSection />
       <HowItWorksSection />
       <CTASection />
-      <Footer />
     </>
   );
 }

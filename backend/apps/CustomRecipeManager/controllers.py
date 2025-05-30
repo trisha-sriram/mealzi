@@ -389,6 +389,113 @@ def public_recipes_options():
     set_cors_headers()
     return ""
 
+@action('api/recipes/<recipe_id>', method=['GET'])
+@action.uses(db, session)
+def get_recipe_detail(recipe_id):
+    """Get detailed recipe information by ID"""
+    set_cors_headers()
+    
+    try:
+        # Get the recipe with author details
+        recipe_query = db(db.recipe.id == recipe_id).select(
+            db.recipe.ALL,
+            db.auth_user.first_name,
+            db.auth_user.last_name,
+            left=db.auth_user.on(db.recipe.author == db.auth_user.id)
+        ).first()
+        
+        if not recipe_query:
+            response.status = 404
+            return {"error": "Recipe not found"}
+        
+        # Get recipe ingredients
+        ingredients = db(db.recipe_ingredient.recipe_id == recipe_id).select(
+            db.recipe_ingredient.ALL,
+            db.ingredient.ALL,
+            left=db.ingredient.on(db.recipe_ingredient.ingredient_id == db.ingredient.id)
+        ).as_list()
+        
+        # Get recipe images
+        images = db(db.recipe_multiple_images.recipe_id == recipe_id).select().as_list()
+        
+        # Format the recipe
+        formatted_recipe = {
+            'id': recipe_query['recipe']['id'],
+            'name': recipe_query['recipe']['name'],
+            'type': recipe_query['recipe']['type'],
+            'description': recipe_query['recipe']['description'],
+            'instruction_steps': recipe_query['recipe']['instruction_steps'],
+            'servings': recipe_query['recipe']['servings'],
+            'image': recipe_query['recipe']['image'],
+            'created_on': recipe_query['recipe']['created_on'],
+            'author': recipe_query['recipe']['author'],
+            'author_name': f"{recipe_query['auth_user']['first_name']} {recipe_query['auth_user']['last_name']}" if recipe_query['auth_user'] else 'Unknown Chef',
+            'ingredients': [],
+            'images': [img['recipe_multiple_images']['multi_images'] for img in images] if images else []
+        }
+        
+        # Format ingredients
+        total_nutrition = {
+            'calories': 0,
+            'protein': 0,
+            'fat': 0,
+            'carbs': 0,
+            'sugar': 0,
+            'fiber': 0,
+            'sodium': 0
+        }
+        
+        for ingredient in ingredients:
+            ingredient_data = {
+                'id': ingredient['ingredient']['id'],
+                'name': ingredient['ingredient']['name'],
+                'unit': ingredient['ingredient']['unit'],
+                'quantity_per_serving': ingredient['recipe_ingredient']['quantity_per_serving'],
+                'calories_per_unit': ingredient['ingredient']['calories_per_unit'] or 0,
+                'protein_per_unit': ingredient['ingredient']['protein_per_unit'] or 0,
+                'fat_per_unit': ingredient['ingredient']['fat_per_unit'] or 0,
+                'carbs_per_unit': ingredient['ingredient']['carbs_per_unit'] or 0,
+                'sugar_per_unit': ingredient['ingredient']['sugar_per_unit'] or 0,
+                'fiber_per_unit': ingredient['ingredient']['fiber_per_unit'] or 0,
+                'sodium_per_unit': ingredient['ingredient']['sodium_per_unit'] or 0
+            }
+            
+            # Calculate total nutrition
+            quantity = ingredient_data['quantity_per_serving']
+            total_nutrition['calories'] += ingredient_data['calories_per_unit'] * quantity
+            total_nutrition['protein'] += ingredient_data['protein_per_unit'] * quantity
+            total_nutrition['fat'] += ingredient_data['fat_per_unit'] * quantity
+            total_nutrition['carbs'] += ingredient_data['carbs_per_unit'] * quantity
+            total_nutrition['sugar'] += ingredient_data['sugar_per_unit'] * quantity
+            total_nutrition['fiber'] += ingredient_data['fiber_per_unit'] * quantity
+            total_nutrition['sodium'] += ingredient_data['sodium_per_unit'] * quantity
+            
+            formatted_recipe['ingredients'].append(ingredient_data)
+        
+        # Add total nutrition to recipe
+        formatted_recipe['total_nutrition'] = total_nutrition
+        formatted_recipe['nutrition_per_serving'] = {
+            'calories': round(total_nutrition['calories'] / formatted_recipe['servings']),
+            'protein': round(total_nutrition['protein'] / formatted_recipe['servings'], 1),
+            'fat': round(total_nutrition['fat'] / formatted_recipe['servings'], 1),
+            'carbs': round(total_nutrition['carbs'] / formatted_recipe['servings'], 1),
+            'sugar': round(total_nutrition['sugar'] / formatted_recipe['servings'], 1),
+            'fiber': round(total_nutrition['fiber'] / formatted_recipe['servings'], 1),
+            'sodium': round(total_nutrition['sodium'] / formatted_recipe['servings'])
+        }
+        
+        return {"success": True, "recipe": formatted_recipe}
+        
+    except Exception as e:
+        logger.error(f"Get recipe detail error: {e}\n{traceback.format_exc()}")
+        response.status = 500
+        return {"error": "Failed to get recipe details"}
+
+@action('api/recipes/<recipe_id>', method=['OPTIONS'])
+def recipe_detail_options(recipe_id):
+    set_cors_headers()
+    return ""
+
 # ==============================================================
 # ------------------- CONTACT FORM ENDPOINT --------------------
 # ==============================================================
