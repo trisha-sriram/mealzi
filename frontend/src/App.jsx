@@ -16,6 +16,7 @@ import CreateRecipePage from './pages/CreateRecipePage.jsx';
 import IngredientSearch from './components/IngredientSearch.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import PublicRecipes from './pages/PublicRecipes.jsx';
+import ShareableRecipe from './pages/ShareableRecipe.jsx';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/recipes" element={<PublicRecipes />} />
+              <Route path="/recipe/:id" element={<ShareableRecipe />} />
               <Route 
                 path="/dashboard" 
                 element={

@@ -36,6 +36,20 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
     setImageError(true);
   };
 
+  const copyShareLink = (e) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/recipe/${recipe.id}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      // You could add a toast notification here
+      alert('Recipe link copied to clipboard!');
+    });
+  };
+
+  const openShareableRecipe = (e) => {
+    e.stopPropagation();
+    window.open(`/recipe/${recipe.id}`, '_blank');
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -69,6 +83,19 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
         
         <div className="absolute top-4 left-4">
           <RecipeTypeBadge type={recipe.type} />
+        </div>
+
+        {/* Share Button */}
+        <div className="absolute top-4 right-4">
+          <button
+            onClick={copyShareLink}
+            className="bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-700 p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+            title="Copy share link"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+            </svg>
+          </button>
         </div>
         
         <div className="absolute bottom-4 left-4 text-white">
@@ -124,15 +151,26 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
           </div>
         )}
 
-        {/* View Recipe Button */}
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => onViewRecipe(recipe.id)}
-          className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 px-4 rounded-xl font-medium hover:from-emerald-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md"
-        >
-          View Full Recipe
-        </motion.button>
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => onViewRecipe(recipe.id)}
+            className="bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 px-4 rounded-xl font-medium hover:from-emerald-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            Quick View
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={openShareableRecipe}
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-3 px-4 rounded-xl font-medium hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            Full Page
+          </motion.button>
+        </div>
       </div>
     </motion.div>
   );
