@@ -65,6 +65,7 @@ def ingredients_search():
     total_count = db(ingredients_query).count()
 
     ingredients = db(ingredients_query).select(
+        db.ingredient.id,
         db.ingredient.name,
         db.ingredient.unit,
         db.ingredient.description,
