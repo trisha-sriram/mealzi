@@ -946,5 +946,104 @@ def serve_upload(filename):
     with open(file_path, 'rb') as f:
         return f.read()
 
+# ==============================================================
+# ------------------ RECIPE SEARCH ----------------------------
+# ==============================================================
+
+@action('api/recipes/search', method=['GET'])
+@action.uses(db, session)
+def search_recipes():
+    """Search recipes by name and/or type with pagination"""
+    set_cors_headers()
+    
+    # Get search parameters from request
+    name_query = request.params.get('name', '').strip()
+    type_query = request.params.get('type', '').strip()
+    
+    # Pagination parameters
+    page = int(request.params.get('page', 1))
+    limit = int(request.params.get('limit', 10))
+    start, end = (page - 1) * limit, (page * limit)
+    
+    # Build query based on search parameters
+    query = db.recipe
+    if name_query:
+        query = db.recipe.name.ilike(f'%{name_query}%')
+    if type_query:
+        if name_query:
+            query = query & (db.recipe.type == type_query)
+        else:
+            query = db.recipe.type == type_query
+    
+    # Count total recipes matching the query
+    total_count = db(query).count()
+    
+    # Get recipes with author information
+    recipes = db(query).select(
+        db.recipe.ALL,
+        db.auth_user.first_name,
+        db.auth_user.last_name,
+        left=db.auth_user.on(db.recipe.author == db.auth_user.id),
+        orderby=~db.recipe.created_on,
+        limitby=(start, end)
+    )
+    
+    # Process recipes for response
+    result = []
+    for recipe in recipes:
+        author_name = f"{recipe.auth_user.first_name} {recipe.auth_user.last_name}".strip()
+        
+        # Get total nutritional values
+        total_calories = 0
+        total_protein = 0
+        total_fat = 0
+        total_carbs = 0
+        
+        # Get recipe ingredients with nutritional info
+        recipe_ingredients = db(db.recipe_ingredient.recipe_id == recipe.recipe.id).select(
+            db.recipe_ingredient.ALL,
+            db.ingredient.ALL,
+            left=db.ingredient.on(db.recipe_ingredient.ingredient_id == db.ingredient.id)
+        )
+        
+        # Calculate total nutritional values
+        for ri in recipe_ingredients:
+            if ri.ingredient.id:
+                quantity = ri.recipe_ingredient.quantity_per_serving
+                total_calories += quantity * ri.ingredient.calories_per_unit
+                total_protein += quantity * ri.ingredient.protein_per_unit
+                total_fat += quantity * ri.ingredient.fat_per_unit
+                total_carbs += quantity * ri.ingredient.carbs_per_unit
+        
+        # Format the recipe for response
+        result.append({
+            "id": recipe.recipe.id,
+            "name": recipe.recipe.name,
+            "type": recipe.recipe.type,
+            "description": recipe.recipe.description,
+            "image": recipe.recipe.image,
+            "author": recipe.recipe.author,
+            "author_name": author_name,
+            "servings": recipe.recipe.servings,
+            "created_on": recipe.recipe.created_on,
+            "total_calories": round(total_calories, 2),
+            "total_protein": round(total_protein, 2),
+            "total_fat": round(total_fat, 2),
+            "total_carbs": round(total_carbs, 2)
+        })
+    
+    return {
+        "success": True,
+        "total": total_count,
+        "page": page,
+        "limit": limit,
+        "recipes": result
+    }
+
+@action('api/recipes/search', method=['OPTIONS'])
+def search_recipes_options():
+    set_cors_headers()
+    return ""
+
 
 
