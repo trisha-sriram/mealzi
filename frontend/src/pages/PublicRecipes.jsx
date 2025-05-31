@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api';
 import RecipeDetailModal from '../components/RecipeDetailModal';
+import IngredientSearchBar from '../components/IngredientSearchBar';
 
 const API_BASE_URL = apiService.baseURL;
 
@@ -273,12 +274,16 @@ const PublicRecipes = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { isAuthenticated } = useAuth();
   
-  // New search state
+  // Search state
+  const [activeTab, setActiveTab] = useState('basic'); // 'basic' or 'ingredients'
   const [nameQuery, setNameQuery] = useState('');
   const [typeQuery, setTypeQuery] = useState('');
+  const [ingredientIds, setIngredientIds] = useState([]);
+  const [matchAll, setMatchAll] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRecipes, setTotalRecipes] = useState(0);
   const [recipesPerPage, setRecipesPerPage] = useState(12);
+  const [searchSummary, setSearchSummary] = useState('');
 
   const openRecipeModal = (recipeId) => {
     setSelectedRecipeId(recipeId);
@@ -290,14 +295,43 @@ const PublicRecipes = () => {
     setSelectedRecipeId(null);
   };
 
-  const handleSearch = (name, type) => {
+  const handleBasicSearch = (name, type) => {
     setNameQuery(name);
     setTypeQuery(type);
+    setIngredientIds([]);
+    setMatchAll(false);
     setCurrentPage(1);
-    fetchRecipes(name, type, 1);
+    fetchBasicRecipes(name, type, 1);
+    
+    // Update search summary
+    let summary = '';
+    if (name) summary += `name containing "${name}"`;
+    if (type) summary += `${summary ? ' and ' : ''}type "${type}"`;
+    setSearchSummary(summary);
   };
   
-  const fetchRecipes = async (name = nameQuery, type = typeQuery, page = currentPage) => {
+  const handleIngredientSearch = ({ ingredientIds = [], matchAll = false }) => {
+    setIngredientIds(ingredientIds);
+    setMatchAll(matchAll);
+    setNameQuery('');
+    setTypeQuery('');
+    setCurrentPage(1);
+    
+    if (ingredientIds.length === 0) {
+      // If no ingredients, just reset to all recipes
+      fetchBasicRecipes('', '');
+      setSearchSummary('');
+    } else {
+      // Search by ingredients
+      fetchRecipesByIngredients(ingredientIds, matchAll, '', '');
+      
+      // Update search summary
+      const summary = `${ingredientIds.length} ingredient${ingredientIds.length > 1 ? 's' : ''} (${matchAll ? 'all' : 'any'})`;
+      setSearchSummary(summary);
+    }
+  };
+  
+  const fetchBasicRecipes = async (name = nameQuery, type = typeQuery, page = currentPage) => {
     setLoading(true);
     try {
       // If both name and type are empty, use the public recipes endpoint
@@ -319,14 +353,50 @@ const PublicRecipes = () => {
       setLoading(false);
     }
   };
+  
+  const fetchRecipesByIngredients = async (
+    ingredients = ingredientIds,
+    match = matchAll,
+    name = nameQuery,
+    type = typeQuery,
+    page = currentPage
+  ) => {
+    setLoading(true);
+    try {
+      const response = await apiService.searchRecipesByIngredients(
+        ingredients, match, name, type, page, recipesPerPage
+      );
+      setTotalRecipes(response.total || 0);
+      setRecipes(response.recipes || []);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching recipes by ingredients:', err);
+      setError('Failed to fetch recipes. Please try again later.');
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetchRecipes();
+    // Initial data fetch
+    if (ingredientIds.length > 0) {
+      fetchRecipesByIngredients();
+    } else {
+      fetchBasicRecipes();
+    }
   }, [currentPage, recipesPerPage]);
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    // Reset search parameters when switching tabs
+    if (tab === 'basic') {
+      setIngredientIds([]);
+      setMatchAll(false);
+    }
   };
 
   if (loading) {
@@ -395,22 +465,51 @@ const PublicRecipes = () => {
           </motion.p>
         </div>
         
-        {/* Search Bar */}
-        <SearchBar onSearch={handleSearch} />
+        {/* Search Tabs */}
+        <div className="mb-6">
+          <div className="flex border-b border-gray-200 mb-4">
+            <button
+              onClick={() => handleTabChange('basic')}
+              className={`py-3 px-6 font-medium text-sm focus:outline-none ${
+                activeTab === 'basic'
+                  ? 'text-emerald-600 border-b-2 border-emerald-500'
+                  : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent'
+              }`}
+            >
+              Search by Name/Type
+            </button>
+            <button
+              onClick={() => handleTabChange('ingredients')}
+              className={`py-3 px-6 font-medium text-sm focus:outline-none ${
+                activeTab === 'ingredients'
+                  ? 'text-emerald-600 border-b-2 border-emerald-500'
+                  : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent'
+              }`}
+            >
+              Search by Ingredients
+            </button>
+          </div>
+          
+          {/* Search Components */}
+          {activeTab === 'basic' ? (
+            <SearchBar onSearch={handleBasicSearch} />
+          ) : (
+            <IngredientSearchBar onSearch={handleIngredientSearch} />
+          )}
+        </div>
         
         {/* Search Results Summary */}
-        {(nameQuery || typeQuery) && (
+        {searchSummary && (
           <div className="mb-6 bg-emerald-50 rounded-lg p-4 border border-emerald-100">
             <div className="flex justify-between items-center">
               <div>
                 <span className="font-medium">
                   {totalRecipes} {totalRecipes === 1 ? 'recipe' : 'recipes'} found
                 </span>
-                {nameQuery && <span className="ml-2">for "{nameQuery}"</span>}
-                {typeQuery && <span className="ml-2">in {typeQuery}</span>}
+                {searchSummary && <span className="ml-2">matching {searchSummary}</span>}
               </div>
               <button 
-                onClick={() => handleSearch('', '')}
+                onClick={() => activeTab === 'basic' ? handleBasicSearch('', '') : handleIngredientSearch({})}
                 className="text-emerald-600 hover:text-emerald-800 text-sm font-medium"
               >
                 Clear Search
@@ -484,7 +583,7 @@ const PublicRecipes = () => {
             <div className="text-6xl mb-4">🍽️</div>
             <h3 className="text-2xl font-bold text-gray-700 mb-2">No recipes found</h3>
             <p className="text-gray-600">
-              {nameQuery || typeQuery 
+              {searchSummary
                 ? 'Try adjusting your search criteria'
                 : 'Be the first to add a recipe to our collection!'}
             </p>
