@@ -117,6 +117,16 @@ class ApiService {
     return this.request('/api/recipes/public');
   }
 
+  async searchRecipes(nameQuery = '', typeQuery = '', page = 1, limit = 10) {
+    const params = new URLSearchParams();
+    if (nameQuery) params.append('name', nameQuery);
+    if (typeQuery) params.append('type', typeQuery);
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    
+    return this.request(`/api/recipes/search?${params}`);
+  }
+
   async getRecipeDetail(recipeId) {
     return this.request(`/api/recipes/${recipeId}`);
   }

@@ -176,6 +176,95 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
   );
 };
 
+// New SearchBar component
+const SearchBar = ({ onSearch }) => {
+  const [nameQuery, setNameQuery] = useState('');
+  const [typeQuery, setTypeQuery] = useState('');
+  const recipeTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Dessert', 'Drink'];
+  
+  const handleSearch = (e) => {
+    e.preventDefault();
+    onSearch(nameQuery, typeQuery);
+  };
+  
+  const handleClear = () => {
+    setNameQuery('');
+    setTypeQuery('');
+    onSearch('', '');
+  };
+  
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl shadow-md p-5 mb-8"
+    >
+      <form onSubmit={handleSearch} className="space-y-4">
+        <div className="text-xl font-bold text-emerald-700 mb-2">Find Your Perfect Recipe</div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Recipe Name Search */}
+          <div className="col-span-2">
+            <label htmlFor="nameSearch" className="block text-sm font-medium text-gray-700 mb-1">Recipe Name</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                id="nameSearch"
+                value={nameQuery}
+                onChange={(e) => setNameQuery(e.target.value)}
+                placeholder="Search by recipe name..."
+                className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+          </div>
+          
+          {/* Recipe Type Filter */}
+          <div>
+            <label htmlFor="typeFilter" className="block text-sm font-medium text-gray-700 mb-1">Recipe Type</label>
+            <select
+              id="typeFilter"
+              value={typeQuery}
+              onChange={(e) => setTypeQuery(e.target.value)}
+              className="block w-full border border-gray-300 rounded-lg py-3 px-4 focus:ring-emerald-500 focus:border-emerald-500"
+            >
+              <option value="">All Types</option>
+              {recipeTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <div className="flex space-x-3">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="submit"
+            className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 px-6 rounded-lg font-medium shadow-sm hover:shadow-md transition-all duration-200"
+          >
+            Search Recipes
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="button"
+            onClick={handleClear}
+            className="bg-gray-200 text-gray-800 py-3 px-6 rounded-lg font-medium hover:bg-gray-300 transition-all duration-200"
+          >
+            Clear
+          </motion.button>
+        </div>
+      </form>
+    </motion.div>
+  );
+};
+
 const PublicRecipes = () => {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -183,6 +272,13 @@ const PublicRecipes = () => {
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { isAuthenticated } = useAuth();
+  
+  // New search state
+  const [nameQuery, setNameQuery] = useState('');
+  const [typeQuery, setTypeQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalRecipes, setTotalRecipes] = useState(0);
+  const [recipesPerPage, setRecipesPerPage] = useState(12);
 
   const openRecipeModal = (recipeId) => {
     setSelectedRecipeId(recipeId);
@@ -194,20 +290,44 @@ const PublicRecipes = () => {
     setSelectedRecipeId(null);
   };
 
-  useEffect(() => {
-    const fetchRecipes = async () => {
-      try {
-        const response = await apiService.getPublicRecipes();
+  const handleSearch = (name, type) => {
+    setNameQuery(name);
+    setTypeQuery(type);
+    setCurrentPage(1);
+    fetchRecipes(name, type, 1);
+  };
+  
+  const fetchRecipes = async (name = nameQuery, type = typeQuery, page = currentPage) => {
+    setLoading(true);
+    try {
+      // If both name and type are empty, use the public recipes endpoint
+      let response;
+      if (!name && !type) {
+        response = await apiService.getPublicRecipes();
+        setTotalRecipes(response.recipes?.length || 0);
         setRecipes(response.recipes || []);
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to fetch recipes. Please try again later.');
-        setLoading(false);
+      } else {
+        // Otherwise use the search endpoint
+        response = await apiService.searchRecipes(name, type, page, recipesPerPage);
+        setTotalRecipes(response.total || 0);
+        setRecipes(response.recipes || []);
       }
-    };
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching recipes:', err);
+      setError('Failed to fetch recipes. Please try again later.');
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchRecipes();
-  }, []);
+  }, [currentPage, recipesPerPage]);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   if (loading) {
     return (
@@ -249,66 +369,145 @@ const PublicRecipes = () => {
           >
             <Link 
               to="/dashboard" 
-              className="inline-flex items-center text-emerald-600 hover:text-emerald-700 font-medium transition-colors bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md"
+              className="text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
             >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Dashboard
+              ← Back to Dashboard
             </Link>
           </motion.div>
         )}
         
-        {/* Header Section */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-5xl font-bold mb-4 text-gray-800">
-            🌟 Public Recipes
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Discover and explore amazing recipes shared by our talented community of chefs
-          </p>
-        </motion.div>
-        
-        {/* Recipes Grid */}
-        {recipes.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {recipes.map((recipe, index) => (
-              <RecipeCard key={recipe.id} recipe={recipe} index={index} onViewRecipe={openRecipeModal} />
-            ))}
-          </div>
-        ) : (
-          <motion.div
+        {/* Page Header */}
+        <div className="mb-8 text-center">
+          <motion.h1 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-4xl font-extrabold text-emerald-800 mb-2"
+          >
+            Discover Recipes
+          </motion.h1>
+          <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-16 bg-white rounded-2xl shadow-lg max-w-md mx-auto"
+            transition={{ delay: 0.2 }}
+            className="text-lg text-emerald-600"
           >
-            <div className="text-6xl mb-6">🍽️</div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">No recipes available yet!</h3>
-            <p className="text-gray-600 mb-8">
-              Be the first to share a recipe with the community!
+            Explore our collection of delicious recipes shared by our community
+          </motion.p>
+        </div>
+        
+        {/* Search Bar */}
+        <SearchBar onSearch={handleSearch} />
+        
+        {/* Search Results Summary */}
+        {(nameQuery || typeQuery) && (
+          <div className="mb-6 bg-emerald-50 rounded-lg p-4 border border-emerald-100">
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="font-medium">
+                  {totalRecipes} {totalRecipes === 1 ? 'recipe' : 'recipes'} found
+                </span>
+                {nameQuery && <span className="ml-2">for "{nameQuery}"</span>}
+                {typeQuery && <span className="ml-2">in {typeQuery}</span>}
+              </div>
+              <button 
+                onClick={() => handleSearch('', '')}
+                className="text-emerald-600 hover:text-emerald-800 text-sm font-medium"
+              >
+                Clear Search
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Recipe Grid */}
+        {recipes.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {recipes.map((recipe, index) => (
+                <RecipeCard 
+                  key={recipe.id} 
+                  recipe={recipe} 
+                  index={index} 
+                  onViewRecipe={openRecipeModal}
+                />
+              ))}
+            </div>
+            
+            {/* Pagination */}
+            {totalRecipes > recipesPerPage && (
+              <div className="mt-12 flex justify-center">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 rounded-md ${
+                      currentPage === 1 
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  
+                  {/* Page Numbers */}
+                  {Array.from({ length: Math.ceil(totalRecipes / recipesPerPage) }).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handlePageChange(i + 1)}
+                      className={`px-4 py-2 rounded-md ${
+                        currentPage === i + 1
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === Math.ceil(totalRecipes / recipesPerPage)}
+                    className={`px-4 py-2 rounded-md ${
+                      currentPage === Math.ceil(totalRecipes / recipesPerPage)
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-16">
+            <div className="text-6xl mb-4">🍽️</div>
+            <h3 className="text-2xl font-bold text-gray-700 mb-2">No recipes found</h3>
+            <p className="text-gray-600">
+              {nameQuery || typeQuery 
+                ? 'Try adjusting your search criteria'
+                : 'Be the first to add a recipe to our collection!'}
             </p>
             {isAuthenticated() && (
               <Link
                 to="/create-recipe"
-                className="inline-block bg-emerald-500 text-white px-8 py-3 rounded-xl font-medium hover:bg-emerald-600 transition-colors"
+                className="inline-block mt-6 bg-emerald-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-emerald-600 transition-all duration-200"
               >
-                Create First Recipe ✨
+                Create a Recipe
               </Link>
             )}
-          </motion.div>
+          </div>
         )}
       </div>
-
+      
       {/* Recipe Detail Modal */}
-      <RecipeDetailModal
-        recipeId={selectedRecipeId}
-        isOpen={isModalOpen}
-        onClose={closeRecipeModal}
-      />
+      {isModalOpen && selectedRecipeId && (
+        <RecipeDetailModal
+          recipeId={selectedRecipeId}
+          isOpen={isModalOpen}
+          onClose={closeRecipeModal}
+        />
+      )}
     </div>
   );
 };
