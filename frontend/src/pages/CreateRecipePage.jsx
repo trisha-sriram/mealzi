@@ -263,6 +263,28 @@ const CreateRecipePage = () => {
                   </div>
 
                   <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Ingredients</h4>
+                    <div className="bg-white p-4 rounded-md border border-gray-200">
+                      {selectedIngredients.length > 0 ? (
+                        <ul className="divide-y divide-gray-100">
+                          {selectedIngredients.map((item, idx) => {
+                            const calories = (item.ingredient.calories_per_unit || 0) * (item.quantity || 0);
+                            return (
+                              <li key={item.ingredient.id} className="flex items-center py-2">
+                                <span className="flex-1">{item.ingredient.name}</span>
+                                <span className="w-20 text-sm text-black font-normal text-right">{item.quantity} {item.ingredient.unit}</span>
+                                <span className="w-16 ml-4 text-sm text-yellow-800 font-normal text-right">{calories} kcal</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="text-gray-500 italic">No ingredients added</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
                     <h4 className="font-medium text-gray-900 mb-2">Instructions</h4>
                     <div className="bg-white p-4 rounded-md border border-gray-200">
                       {instructionSteps.filter(step => step.trim()).length > 0 ? (

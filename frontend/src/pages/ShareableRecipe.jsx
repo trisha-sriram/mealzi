@@ -171,18 +171,20 @@ const ShareableRecipe = () => {
             {/* Ingredients */}
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-gray-800 mb-4">Ingredients</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
                 {recipe.ingredients?.map((ingredient, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center py-2 px-4 bg-gray-50 rounded-lg overflow-x-auto"
+                    style={{ minWidth: 0 }}
                   >
-                    <span className="font-medium text-gray-800">{ingredient.name}</span>
-                    <span className="text-green-600 font-semibold">
-                      {ingredient.quantity_per_serving} {ingredient.unit}
+                    <span className="flex-1 truncate font-medium text-gray-800">{ingredient.name}</span>
+                    <span className="w-24 text-base text-black font-normal text-right whitespace-nowrap overflow-hidden truncate">{ingredient.quantity_per_serving} {ingredient.unit}</span>
+                    <span className="w-20 ml-4 text-base text-yellow-800 font-normal text-right break-words">
+                      {ingredient.calories} kcal
                     </span>
                   </motion.div>
                 ))}

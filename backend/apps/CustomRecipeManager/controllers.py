@@ -546,16 +546,8 @@ def get_recipe_detail(recipe_id):
         }
         
         # Format ingredients
-        total_nutrition = {
-            'calories': 0,
-            'protein': 0,
-            'fat': 0,
-            'carbs': 0,
-            'sugar': 0,
-            'fiber': 0,
-            'sodium': 0
-        }
-        
+        total_calories = 0
+        formatted_recipe['ingredients'] = []
         for ingredient in ingredients:
             ingredient_data = {
                 'id': ingredient['ingredient']['id'],
@@ -563,36 +555,30 @@ def get_recipe_detail(recipe_id):
                 'unit': ingredient['ingredient']['unit'],
                 'quantity_per_serving': ingredient['recipe_ingredient']['quantity_per_serving'],
                 'calories_per_unit': ingredient['ingredient']['calories_per_unit'] or 0,
-                'protein_per_unit': ingredient['ingredient']['protein_per_unit'] or 0,
-                'fat_per_unit': ingredient['ingredient']['fat_per_unit'] or 0,
-                'carbs_per_unit': ingredient['ingredient']['carbs_per_unit'] or 0,
-                'sugar_per_unit': ingredient['ingredient']['sugar_per_unit'] or 0,
-                'fiber_per_unit': ingredient['ingredient']['fiber_per_unit'] or 0,
-                'sodium_per_unit': ingredient['ingredient']['sodium_per_unit'] or 0
             }
-            
-            # Calculate total nutrition
-            quantity = ingredient_data['quantity_per_serving']
-            total_nutrition['calories'] += ingredient_data['calories_per_unit'] * quantity
-            total_nutrition['protein'] += ingredient_data['protein_per_unit'] * quantity
-            total_nutrition['fat'] += ingredient_data['fat_per_unit'] * quantity
-            total_nutrition['carbs'] += ingredient_data['carbs_per_unit'] * quantity
-            total_nutrition['sugar'] += ingredient_data['sugar_per_unit'] * quantity
-            total_nutrition['fiber'] += ingredient_data['fiber_per_unit'] * quantity
-            total_nutrition['sodium'] += ingredient_data['sodium_per_unit'] * quantity
-            
+            ingredient_data['calories'] = ingredient_data['calories_per_unit'] * ingredient_data['quantity_per_serving']
+            total_calories += ingredient_data['calories']
             formatted_recipe['ingredients'].append(ingredient_data)
+        formatted_recipe['total_calories'] = total_calories
         
         # Add total nutrition to recipe
-        formatted_recipe['total_nutrition'] = total_nutrition
+        formatted_recipe['total_nutrition'] = {
+            'calories': total_calories,
+            'protein': 0,
+            'fat': 0,
+            'carbs': 0,
+            'sugar': 0,
+            'fiber': 0,
+            'sodium': 0
+        }
         formatted_recipe['nutrition_per_serving'] = {
-            'calories': round(total_nutrition['calories'] / formatted_recipe['servings']),
-            'protein': round(total_nutrition['protein'] / formatted_recipe['servings'], 1),
-            'fat': round(total_nutrition['fat'] / formatted_recipe['servings'], 1),
-            'carbs': round(total_nutrition['carbs'] / formatted_recipe['servings'], 1),
-            'sugar': round(total_nutrition['sugar'] / formatted_recipe['servings'], 1),
-            'fiber': round(total_nutrition['fiber'] / formatted_recipe['servings'], 1),
-            'sodium': round(total_nutrition['sodium'] / formatted_recipe['servings'])
+            'calories': round(total_calories / formatted_recipe['servings']),
+            'protein': 0,
+            'fat': 0,
+            'carbs': 0,
+            'sugar': 0,
+            'fiber': 0,
+            'sodium': 0
         }
         
         return {"success": True, "recipe": formatted_recipe}
@@ -1042,6 +1028,173 @@ def search_recipes():
 
 @action('api/recipes/search', method=['OPTIONS'])
 def search_recipes_options():
+    set_cors_headers()
+    return ""
+
+@action('api/recipes/search_by_ingredients', method=['GET'])
+@action.uses(db, session)
+def search_recipes_by_ingredients():
+    """Search recipes containing a subset of provided ingredients"""
+    set_cors_headers()
+    
+    # Get ingredients from query parameters (comma-separated list of IDs)
+    ingredient_ids = request.params.get('ingredients', '').strip()
+    match_all = request.params.get('match_all', 'false').lower() == 'true'
+    
+    # Optional name and type filters
+    name_query = request.params.get('name', '').strip()
+    type_query = request.params.get('type', '').strip()
+    
+    # Parse ingredient IDs
+    if ingredient_ids:
+        try:
+            ingredient_ids = [int(id) for id in ingredient_ids.split(',')]
+        except ValueError:
+            response.status = 400
+            return {"error": "Invalid ingredient IDs format"}
+    else:
+        ingredient_ids = []
+    
+    # Pagination parameters
+    page = int(request.params.get('page', 1))
+    limit = int(request.params.get('limit', 10))
+    start, end = (page - 1) * limit, (page * limit)
+    
+    if not ingredient_ids:
+        # If no ingredients provided, return empty results
+        return {
+            "success": True,
+            "total": 0,
+            "page": page,
+            "limit": limit,
+            "recipes": []
+        }
+    
+    # Construct the query
+    if match_all:
+        # Find recipes that contain ALL of the specified ingredients
+        # For each ingredient, find recipes that contain it, then intersect the sets
+        recipe_ids = None
+        for ingredient_id in ingredient_ids:
+            recipes_with_ingredient = db(db.recipe_ingredient.ingredient_id == ingredient_id).select(
+                db.recipe_ingredient.recipe_id
+            )
+            ingredient_recipe_ids = {r.recipe_id for r in recipes_with_ingredient}
+            
+            if recipe_ids is None:
+                recipe_ids = ingredient_recipe_ids
+            else:
+                recipe_ids &= ingredient_recipe_ids  # Set intersection
+        
+        if not recipe_ids:
+            return {
+                "success": True,
+                "total": 0,
+                "page": page,
+                "limit": limit,
+                "recipes": []
+            }
+        
+        # Base query for recipes with all ingredients
+        query = db.recipe.id.belongs(recipe_ids)
+    else:
+        # Find recipes that contain ANY of the specified ingredients
+        recipe_ids = db(db.recipe_ingredient.ingredient_id.belongs(ingredient_ids)).select(
+            db.recipe_ingredient.recipe_id, distinct=True
+        )
+        recipe_ids = [r.recipe_id for r in recipe_ids]
+        
+        if not recipe_ids:
+            return {
+                "success": True,
+                "total": 0,
+                "page": page,
+                "limit": limit,
+                "recipes": []
+            }
+        
+        # Base query for recipes with any of the ingredients
+        query = db.recipe.id.belongs(recipe_ids)
+    
+    # Apply additional filters
+    if name_query:
+        query = query & db.recipe.name.ilike(f'%{name_query}%')
+    if type_query:
+        query = query & (db.recipe.type == type_query)
+    
+    # Count total recipes matching the query
+    total_count = db(query).count()
+    
+    # Get recipes with author information
+    recipes = db(query).select(
+        db.recipe.ALL,
+        db.auth_user.first_name,
+        db.auth_user.last_name,
+        left=db.auth_user.on(db.recipe.author == db.auth_user.id),
+        orderby=~db.recipe.created_on,
+        limitby=(start, end)
+    )
+    
+    # Process recipes for response
+    result = []
+    for recipe in recipes:
+        author_name = f"{recipe.auth_user.first_name} {recipe.auth_user.last_name}".strip()
+        
+        # Get total nutritional values
+        total_calories = 0
+        total_protein = 0
+        total_fat = 0
+        total_carbs = 0
+        
+        # Get recipe ingredients with nutritional info
+        recipe_ingredients = db(db.recipe_ingredient.recipe_id == recipe.recipe.id).select(
+            db.recipe_ingredient.ALL,
+            db.ingredient.ALL,
+            left=db.ingredient.on(db.recipe_ingredient.ingredient_id == db.ingredient.id)
+        )
+        
+        # Calculate which requested ingredients are in this recipe
+        recipe_ingredient_ids = [ri.ingredient.id for ri in recipe_ingredients if ri.ingredient.id]
+        matching_ingredients = [id for id in ingredient_ids if id in recipe_ingredient_ids]
+        
+        # Calculate total nutritional values
+        for ri in recipe_ingredients:
+            if ri.ingredient.id:
+                quantity = ri.recipe_ingredient.quantity_per_serving
+                total_calories += quantity * ri.ingredient.calories_per_unit
+                total_protein += quantity * ri.ingredient.protein_per_unit
+                total_fat += quantity * ri.ingredient.fat_per_unit
+                total_carbs += quantity * ri.ingredient.carbs_per_unit
+        
+        # Format the recipe for response
+        result.append({
+            "id": recipe.recipe.id,
+            "name": recipe.recipe.name,
+            "type": recipe.recipe.type,
+            "description": recipe.recipe.description,
+            "image": recipe.recipe.image,
+            "author": recipe.recipe.author,
+            "author_name": author_name,
+            "servings": recipe.recipe.servings,
+            "created_on": recipe.recipe.created_on,
+            "total_calories": round(total_calories, 2),
+            "total_protein": round(total_protein, 2),
+            "total_fat": round(total_fat, 2),
+            "total_carbs": round(total_carbs, 2),
+            "matching_ingredients": len(matching_ingredients),
+            "total_requested_ingredients": len(ingredient_ids)
+        })
+    
+    return {
+        "success": True,
+        "total": total_count,
+        "page": page,
+        "limit": limit,
+        "recipes": result
+    }
+
+@action('api/recipes/search_by_ingredients', method=['OPTIONS'])
+def search_recipes_by_ingredients_options():
     set_cors_headers()
     return ""
 

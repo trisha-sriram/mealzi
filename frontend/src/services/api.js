@@ -127,6 +127,28 @@ class ApiService {
     return this.request(`/api/recipes/search?${params}`);
   }
 
+  async searchRecipesByIngredients(ingredientIds = [], matchAll = false, nameQuery = '', typeQuery = '', page = 1, limit = 10) {
+    const params = new URLSearchParams();
+    
+    // Convert ingredient IDs array to comma-separated string
+    if (ingredientIds.length > 0) {
+      params.append('ingredients', ingredientIds.join(','));
+    }
+    
+    // Include match_all parameter (default: false)
+    params.append('match_all', matchAll.toString());
+    
+    // Add optional name and type filters only if provided
+    if (nameQuery && nameQuery.trim()) params.append('name', nameQuery);
+    if (typeQuery && typeQuery.trim()) params.append('type', typeQuery);
+    
+    // Pagination params
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    
+    return this.request(`/api/recipes/search_by_ingredients?${params}`);
+  }
+
   async getRecipeDetail(recipeId) {
     return this.request(`/api/recipes/${recipeId}`);
   }
