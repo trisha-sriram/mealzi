@@ -213,12 +213,11 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.1 }}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                            className="flex items-center py-2 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
                           >
-                            <span className="font-medium text-gray-800">{ingredient.name}</span>
-                            <span className="text-emerald-600 font-bold">
-                              {ingredient.quantity_per_serving} {ingredient.unit}
-                            </span>
+                            <span className="flex-1">{ingredient.name}</span>
+                            <span className="w-20 text-xs text-black font-normal text-right">{ingredient.quantity_per_serving} {ingredient.unit}</span>
+                            <span className="w-16 ml-4 text-xs text-yellow-800 font-normal text-right">{ingredient.calories} kcal</span>
                           </motion.div>
                         ))}
                       </div>

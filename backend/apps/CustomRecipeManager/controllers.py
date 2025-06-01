@@ -546,16 +546,8 @@ def get_recipe_detail(recipe_id):
         }
         
         # Format ingredients
-        total_nutrition = {
-            'calories': 0,
-            'protein': 0,
-            'fat': 0,
-            'carbs': 0,
-            'sugar': 0,
-            'fiber': 0,
-            'sodium': 0
-        }
-        
+        total_calories = 0
+        formatted_recipe['ingredients'] = []
         for ingredient in ingredients:
             ingredient_data = {
                 'id': ingredient['ingredient']['id'],
@@ -563,36 +555,30 @@ def get_recipe_detail(recipe_id):
                 'unit': ingredient['ingredient']['unit'],
                 'quantity_per_serving': ingredient['recipe_ingredient']['quantity_per_serving'],
                 'calories_per_unit': ingredient['ingredient']['calories_per_unit'] or 0,
-                'protein_per_unit': ingredient['ingredient']['protein_per_unit'] or 0,
-                'fat_per_unit': ingredient['ingredient']['fat_per_unit'] or 0,
-                'carbs_per_unit': ingredient['ingredient']['carbs_per_unit'] or 0,
-                'sugar_per_unit': ingredient['ingredient']['sugar_per_unit'] or 0,
-                'fiber_per_unit': ingredient['ingredient']['fiber_per_unit'] or 0,
-                'sodium_per_unit': ingredient['ingredient']['sodium_per_unit'] or 0
             }
-            
-            # Calculate total nutrition
-            quantity = ingredient_data['quantity_per_serving']
-            total_nutrition['calories'] += ingredient_data['calories_per_unit'] * quantity
-            total_nutrition['protein'] += ingredient_data['protein_per_unit'] * quantity
-            total_nutrition['fat'] += ingredient_data['fat_per_unit'] * quantity
-            total_nutrition['carbs'] += ingredient_data['carbs_per_unit'] * quantity
-            total_nutrition['sugar'] += ingredient_data['sugar_per_unit'] * quantity
-            total_nutrition['fiber'] += ingredient_data['fiber_per_unit'] * quantity
-            total_nutrition['sodium'] += ingredient_data['sodium_per_unit'] * quantity
-            
+            ingredient_data['calories'] = ingredient_data['calories_per_unit'] * ingredient_data['quantity_per_serving']
+            total_calories += ingredient_data['calories']
             formatted_recipe['ingredients'].append(ingredient_data)
+        formatted_recipe['total_calories'] = total_calories
         
         # Add total nutrition to recipe
-        formatted_recipe['total_nutrition'] = total_nutrition
+        formatted_recipe['total_nutrition'] = {
+            'calories': total_calories,
+            'protein': 0,
+            'fat': 0,
+            'carbs': 0,
+            'sugar': 0,
+            'fiber': 0,
+            'sodium': 0
+        }
         formatted_recipe['nutrition_per_serving'] = {
-            'calories': round(total_nutrition['calories'] / formatted_recipe['servings']),
-            'protein': round(total_nutrition['protein'] / formatted_recipe['servings'], 1),
-            'fat': round(total_nutrition['fat'] / formatted_recipe['servings'], 1),
-            'carbs': round(total_nutrition['carbs'] / formatted_recipe['servings'], 1),
-            'sugar': round(total_nutrition['sugar'] / formatted_recipe['servings'], 1),
-            'fiber': round(total_nutrition['fiber'] / formatted_recipe['servings'], 1),
-            'sodium': round(total_nutrition['sodium'] / formatted_recipe['servings'])
+            'calories': round(total_calories / formatted_recipe['servings']),
+            'protein': 0,
+            'fat': 0,
+            'carbs': 0,
+            'sugar': 0,
+            'fiber': 0,
+            'sodium': 0
         }
         
         return {"success": True, "recipe": formatted_recipe}
