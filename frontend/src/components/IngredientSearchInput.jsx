@@ -155,7 +155,7 @@ const IngredientSearchInput = ({ onAddIngredient }) => {
 
             {/* Search Results Dropdown */}
             <AnimatePresence>
-              {(searchResults.length > 0 || (searchTerm && !isSearching && searchResults.length === 0)) && (
+              {!selectedIngredient && (searchResults.length > 0 || (searchTerm && !isSearching && searchResults.length === 0)) && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
