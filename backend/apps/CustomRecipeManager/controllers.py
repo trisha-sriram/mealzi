@@ -432,6 +432,28 @@ def get_recipes():
         # Format the recipes
         formatted_recipes = []
         for recipe in recipes:
+            # Calculate nutrition for this recipe
+            total_nutrition = {
+                'calories': 0,
+                'protein': 0,
+                'carbs': 0,
+                'fat': 0
+            }
+            recipe_ingredients = db(db.recipe_ingredient.recipe_id == recipe['recipe']['id']).select(
+                db.recipe_ingredient.ALL,
+                db.ingredient.ALL,
+                left=db.ingredient.on(db.recipe_ingredient.ingredient_id == db.ingredient.id)
+            )
+            for ri in recipe_ingredients:
+                if ri.ingredient.id:
+                    qty = ri.recipe_ingredient.quantity_per_serving or 0
+                    total_nutrition['calories'] += (ri.ingredient.calories_per_unit or 0) * qty
+                    total_nutrition['protein']  += (ri.ingredient.protein_per_unit or 0) * qty
+                    total_nutrition['carbs']    += (ri.ingredient.carbs_per_unit or 0) * qty
+                    total_nutrition['fat']      += (ri.ingredient.fat_per_unit or 0) * qty
+            servings = recipe['recipe']['servings'] or 1
+            nutrition_per_serving = {k: round(v / servings, 2) for k, v in total_nutrition.items()}
+            # Add both per serving and total fields for the frontend cards
             formatted_recipe = {
                 'id': recipe['recipe']['id'],
                 'name': recipe['recipe']['name'],
@@ -442,7 +464,12 @@ def get_recipes():
                 'image': recipe['recipe']['image'],
                 'created_on': recipe['recipe']['created_on'],
                 'author': recipe['recipe']['author'],
-                'author_name': f"{recipe['auth_user']['first_name']} {recipe['auth_user']['last_name']}"
+                'author_name': f"{recipe['auth_user']['first_name']} {recipe['auth_user']['last_name']}",
+                'nutrition_per_serving': nutrition_per_serving,
+                'total_calories': total_nutrition['calories'],
+                'total_protein': total_nutrition['protein'],
+                'total_carbs': total_nutrition['carbs'],
+                'total_fat': total_nutrition['fat']
             }
             formatted_recipes.append(formatted_recipe)
 
@@ -547,41 +574,57 @@ def get_recipe_detail(recipe_id):
             'images': [img['recipe_multiple_images']['multi_images'] for img in images] if images else []
         }
         
-        # Format ingredients
-        total_calories = 0
+        # Initialize nutrition totals
+        total_nutrition = {
+            'calories': 0,
+            'protein': 0,
+            'fat': 0,
+            'carbs': 0,
+            'sugar': 0,
+            'fiber': 0,
+            'sodium': 0
+        }
+        
+        # Format ingredients and sum nutrition
         formatted_recipe['ingredients'] = []
         for ingredient in ingredients:
+            ing = ingredient['ingredient']
+            qty = ingredient['recipe_ingredient']['quantity_per_serving']
             ingredient_data = {
-                'id': ingredient['ingredient']['id'],
-                'name': ingredient['ingredient']['name'],
-                'unit': ingredient['ingredient']['unit'],
-                'quantity_per_serving': ingredient['recipe_ingredient']['quantity_per_serving'],
-                'calories_per_unit': ingredient['ingredient']['calories_per_unit'] or 0,
+                'id': ing['id'],
+                'name': ing['name'],
+                'unit': ing['unit'],
+                'quantity_per_serving': qty,
+                'calories_per_unit': ing['calories_per_unit'] or 0,
+                'protein_per_unit': ing['protein_per_unit'] or 0,
+                'fat_per_unit': ing['fat_per_unit'] or 0,
+                'carbs_per_unit': ing['carbs_per_unit'] or 0,
+                'sugar_per_unit': ing['sugar_per_unit'] or 0,
+                'fiber_per_unit': ing['fiber_per_unit'] or 0,
+                'sodium_per_unit': ing['sodium_per_unit'] or 0,
             }
-            ingredient_data['calories'] = ingredient_data['calories_per_unit'] * ingredient_data['quantity_per_serving']
-            total_calories += ingredient_data['calories']
+            # Calculate total for this ingredient
+            ingredient_data['calories'] = ingredient_data['calories_per_unit'] * qty
+            ingredient_data['protein'] = ingredient_data['protein_per_unit'] * qty
+            ingredient_data['fat'] = ingredient_data['fat_per_unit'] * qty
+            ingredient_data['carbs'] = ingredient_data['carbs_per_unit'] * qty
+            ingredient_data['sugar'] = ingredient_data['sugar_per_unit'] * qty
+            ingredient_data['fiber'] = ingredient_data['fiber_per_unit'] * qty
+            ingredient_data['sodium'] = ingredient_data['sodium_per_unit'] * qty
+            # Add to totals
+            total_nutrition['calories'] += ingredient_data['calories']
+            total_nutrition['protein']  += ingredient_data['protein']
+            total_nutrition['fat']      += ingredient_data['fat']
+            total_nutrition['carbs']    += ingredient_data['carbs']
+            total_nutrition['sugar']    += ingredient_data['sugar']
+            total_nutrition['fiber']    += ingredient_data['fiber']
+            total_nutrition['sodium']   += ingredient_data['sodium']
             formatted_recipe['ingredients'].append(ingredient_data)
-        formatted_recipe['total_calories'] = total_calories
         
-        # Add total nutrition to recipe
-        formatted_recipe['total_nutrition'] = {
-            'calories': total_calories,
-            'protein': 0,
-            'fat': 0,
-            'carbs': 0,
-            'sugar': 0,
-            'fiber': 0,
-            'sodium': 0
-        }
-        formatted_recipe['nutrition_per_serving'] = {
-            'calories': round(total_calories / formatted_recipe['servings']),
-            'protein': 0,
-            'fat': 0,
-            'carbs': 0,
-            'sugar': 0,
-            'fiber': 0,
-            'sodium': 0
-        }
+        # Add total and per-serving nutrition to recipe
+        servings = formatted_recipe['servings'] or 1
+        formatted_recipe['total_nutrition'] = {k: round(v, 2) for k, v in total_nutrition.items()}
+        formatted_recipe['nutrition_per_serving'] = {k: round(v / servings, 2) for k, v in total_nutrition.items()}
         
         return {"success": True, "recipe": formatted_recipe}
         
