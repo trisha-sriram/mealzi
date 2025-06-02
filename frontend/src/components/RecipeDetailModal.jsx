@@ -9,12 +9,45 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [servings, setServings] = useState(0);
+  const [originalServings, setOriginalServings] = useState(0);
+  const [scaledIngredients, setScaledIngredients] = useState([]);
 
   useEffect(() => {
     if (isOpen && recipeId) {
       fetchRecipeDetails();
     }
   }, [isOpen, recipeId]);
+
+  useEffect(() => {
+    if (recipe) {
+      setServings(recipe.servings);
+      setOriginalServings(recipe.servings);
+      setScaledIngredients(recipe.ingredients || []);
+    }
+  }, [recipe]);
+
+  useEffect(() => {
+    if (recipe && recipe.ingredients && originalServings > 0) {
+      // Scale ingredients based on servings ratio
+      const scaleFactor = servings / originalServings;
+      
+      const scaled = recipe.ingredients.map(ingredient => {
+        const scaledQuantity = ingredient.quantity_per_serving * scaleFactor;
+        // Format the quantity to avoid too many decimal places
+        const formattedQuantity = scaledQuantity >= 10 
+          ? Math.round(scaledQuantity) 
+          : Number(scaledQuantity.toFixed(1));
+        
+        return {
+          ...ingredient,
+          scaled_quantity: formattedQuantity,
+        };
+      });
+      
+      setScaledIngredients(scaled);
+    }
+  }, [servings, originalServings, recipe]);
 
   const fetchRecipeDetails = async () => {
     setLoading(true);
@@ -42,6 +75,11 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
   const getInstructionSteps = (instructionText) => {
     if (!instructionText) return [];
     return instructionText.split('\n').filter(step => step.trim());
+  };
+
+  const handleServingsChange = (newServings) => {
+    if (newServings < 1) return;
+    setServings(newServings);
   };
 
   const RecipeTypeBadge = ({ type }) => {
@@ -152,12 +190,48 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
                       </svg>
                       {formatDate(recipe.created_on)}
                     </span>
-                    <span className="flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1 rounded-full">
+                      <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                       </svg>
-                      {recipe.servings} servings
-                    </span>
+                      <div className="flex items-center">
+                        <button 
+                          onClick={() => handleServingsChange(servings - 1)}
+                          disabled={servings <= 1}
+                          className={`w-6 h-6 flex items-center justify-center rounded-full ${
+                            servings <= 1 ? 'text-gray-300' : 'text-emerald-600 hover:bg-emerald-100'
+                          }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                          </svg>
+                        </button>
+                        <span className="mx-2 font-medium text-emerald-700">{servings} servings</span>
+                        <button 
+                          onClick={() => handleServingsChange(servings + 1)}
+                          className="w-6 h-6 flex items-center justify-center rounded-full text-emerald-600 hover:bg-emerald-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12M6 12h12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <button 
+                        onClick={() => handleServingsChange(originalServings)}
+                        disabled={servings === originalServings}
+                        className={`ml-3 text-xs px-2 py-1 rounded-full flex items-center ${
+                          servings === originalServings 
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                            : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700'
+                        }`}
+                        title="Reset to original servings"
+                      >
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Reset
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -204,20 +278,29 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
                   <div className="space-y-4">
                     <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                       🥕 Ingredients
+                      {servings !== originalServings && (
+                        <span className="text-sm font-normal text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                          Scaled for {servings} servings
+                        </span>
+                      )}
                     </h3>
-                    {recipe.ingredients && recipe.ingredients.length > 0 ? (
+                    {scaledIngredients && scaledIngredients.length > 0 ? (
                       <div className="space-y-3">
-                        {recipe.ingredients.map((ingredient, index) => (
+                        {scaledIngredients.map((ingredient, index) => (
                           <motion.div
-                            key={ingredient.id}
+                            key={`${ingredient.id}-${index}`}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.1 }}
                             className="flex items-center py-2 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
                           >
                             <span className="flex-1">{ingredient.name}</span>
-                            <span className="w-20 text-xs text-black font-normal text-right">{ingredient.quantity_per_serving} {ingredient.unit}</span>
-                            <span className="w-16 ml-4 text-xs text-yellow-800 font-normal text-right">{ingredient.calories} kcal</span>
+                            <span className="w-20 text-xs text-black font-normal text-right">
+                              {ingredient.scaled_quantity || ingredient.quantity_per_serving} {ingredient.unit}
+                            </span>
+                            <span className="w-16 ml-4 text-xs text-yellow-800 font-normal text-right">
+                              {Math.round((ingredient.scaled_quantity || ingredient.quantity_per_serving) * ingredient.calories_per_unit)} kcal
+                            </span>
                           </motion.div>
                         ))}
                       </div>
