@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import config from '../config';
 
 const AuthContext = createContext();
 
@@ -14,9 +15,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Base URL for API calls - adjust this based on your backend setup
-  const API_BASE_URL = 'http://localhost:8000/CustomRecipeManager';
-
   // Check if user is already logged in on app load
   useEffect(() => {
     checkAuthStatus();
@@ -24,7 +22,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/user`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/auth/user`, {
         method: 'GET',
         credentials: 'include', // Include cookies for session
         headers: {
@@ -50,7 +48,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       console.log('Attempting login with:', { email });
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -76,7 +74,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         credentials: 'include', // Include cookies for session
         headers: {
@@ -101,7 +99,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include', // Include cookies for session
         headers: {

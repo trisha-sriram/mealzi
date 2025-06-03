@@ -3,11 +3,22 @@ import React from 'react';
 const RECIPE_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Dessert', 'Drink'];
 
 const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
+  // Initialize images array if it doesn't exist
+  if (!recipeData.images) {
+    updateRecipeData('images', []);
+  }
+
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      updateRecipeData('image', file);
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      updateRecipeData('images', [...(recipeData.images || []), ...files]);
     }
+  };
+
+  const removeImage = (index) => {
+    const newImages = [...(recipeData.images || [])];
+    newImages.splice(index, 1);
+    updateRecipeData('images', newImages);
   };
 
   return (
@@ -28,7 +39,7 @@ const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
           <input
             type="text"
             id="recipe-name"
-            value={recipeData.name}
+            value={recipeData.name || ''}
             onChange={(e) => updateRecipeData('name', e.target.value)}
             placeholder="Enter a delicious recipe name..."
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
@@ -43,7 +54,7 @@ const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
           </label>
           <select
             id="recipe-type"
-            value={recipeData.type}
+            value={recipeData.type || ''}
             onChange={(e) => updateRecipeData('type', e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             required
@@ -65,7 +76,7 @@ const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
             id="servings"
             min="1"
             max="100"
-            value={recipeData.servings}
+            value={recipeData.servings || 1}
             onChange={(e) => updateRecipeData('servings', parseInt(e.target.value) || 1)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             required
@@ -80,7 +91,7 @@ const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
           <textarea
             id="description"
             rows={4}
-            value={recipeData.description}
+            value={recipeData.description || ''}
             onChange={(e) => updateRecipeData('description', e.target.value)}
             placeholder="Describe your recipe... What makes it special? Any tips or background?"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
@@ -90,8 +101,8 @@ const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
 
         {/* Image Upload */}
         <div className="md:col-span-2">
-          <label htmlFor="recipe-image" className="block text-sm font-medium text-gray-700 mb-2">
-            Recipe Image (Optional)
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Recipe Images (add up to 5 images)
           </label>
           <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
             <div className="space-y-1 text-center">
@@ -111,29 +122,47 @@ const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
               </svg>
               <div className="flex text-sm text-gray-600">
                 <label
-                  htmlFor="recipe-image"
+                  htmlFor="recipe-images"
                   className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
                 >
-                  <span>Upload a file</span>
+                  <span>Upload files</span>
                   <input
-                    id="recipe-image"
-                    name="recipe-image"
+                    id="recipe-images"
+                    name="recipe-images"
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleImageChange}
                     className="sr-only"
                   />
                 </label>
                 <p className="pl-1">or drag and drop</p>
               </div>
-              <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+              <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB each</p>
             </div>
           </div>
-          {recipeData.image && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-600">
-                Selected: {recipeData.image.name}
-              </p>
+
+          {/* Image Previews */}
+          {recipeData.images && recipeData.images.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {recipeData.images.map((image, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={URL.createObjectURL(image)}
+                    alt={`Preview ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

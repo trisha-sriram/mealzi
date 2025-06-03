@@ -63,7 +63,7 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
       <div className="relative h-48 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-600 overflow-hidden">
         {recipe.image && !imageError ? (
           <img
-            src={`${API_BASE_URL}/uploads/${recipe.image}`}
+            src={`/uploads/${recipe.image}`}
             alt={recipe.name}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
             onError={(e) => {
@@ -76,7 +76,7 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
             }}
             onLoad={() => {
               console.log('Image loaded successfully:', {
-                src: `${API_BASE_URL}/uploads/${recipe.image}`,
+                src: `/uploads/${recipe.image}`,
                 recipe: recipe.name
               });
             }}

@@ -12,6 +12,7 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
   const [servings, setServings] = useState(0);
   const [originalServings, setOriginalServings] = useState(0);
   const [scaledIngredients, setScaledIngredients] = useState([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     if (isOpen && recipeId) {
@@ -74,7 +75,20 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
 
   const getInstructionSteps = (instructionText) => {
     if (!instructionText) return [];
-    return instructionText.split('\n').filter(step => step.trim());
+    let steps = [];
+    try {
+      steps = JSON.parse(instructionText);
+      if (!Array.isArray(steps)) throw new Error();
+    } catch {
+      steps = instructionText
+        ? instructionText
+            .replace(/^\[|\]$/g, '')
+            .split(',')
+            .map(s => s.replace(/['"]/g, '').trim())
+            .filter(Boolean)
+        : [];
+    }
+    return steps;
   };
 
   const handleServingsChange = (newServings) => {
@@ -97,6 +111,14 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
         {type}
       </span>
     );
+  };
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % recipe.images.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + recipe.images.length) % recipe.images.length);
   };
 
   if (!isOpen) return null;
@@ -235,18 +257,57 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
                   </div>
                 </div>
 
-                {/* Recipe Image */}
-                {recipe.image && (
-                  <div className="flex justify-center">
-                    <div className="relative w-full max-w-md">
-                      <img
-                        src={`${API_BASE_URL}/uploads/${recipe.image}`}
-                        alt={recipe.name}
-                        className="w-full h-64 object-cover rounded-2xl shadow-lg"
-                      />
+                {/* Recipe Images */}
+                {(() => {
+                  // Combine main image and additional images
+                  const allImages = [
+                    ...(recipe.image ? [recipe.image] : []),
+                    ...(recipe.images || [])
+                  ];
+                  return allImages.length > 0 ? (
+                    <div className="flex justify-center">
+                      <div className="relative w-full max-w-md">
+                        <img
+                          src={`/uploads/${allImages[currentImageIndex]}`}
+                          alt={`${recipe.name} - Image ${currentImageIndex + 1}`}
+                          className="w-full h-64 object-cover rounded-2xl shadow-lg"
+                        />
+                        {allImages.length > 1 && (
+                          <>
+                            <button
+                              onClick={() => setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-opacity"
+                              aria-label="Previous image"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setCurrentImageIndex((prev) => (prev + 1) % allImages.length)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-opacity"
+                              aria-label="Next image"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-1">
+                              {allImages.map((_, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => setCurrentImageIndex(index)}
+                                  className={`w-2 h-2 rounded-full ${index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'}`}
+                                  aria-label={`Go to image ${index + 1}`}
+                                />
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ) : null;
+                })()}
 
                 {/* Nutrition Info */}
                 {recipe.nutrition_per_serving && (

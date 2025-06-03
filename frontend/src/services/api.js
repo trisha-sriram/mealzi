@@ -1,10 +1,9 @@
 // API service for backend communication
-// py4web backend server URL
-const API_BASE_URL = 'http://localhost:8000/CustomRecipeManager';
+import config from '../config';
 
 class ApiService {
   constructor() {
-    this.baseURL = API_BASE_URL;
+    this.baseURL = config.API_BASE_URL;
   }
 
   async request(endpoint, options = {}) {
@@ -66,15 +65,29 @@ class ApiService {
 
   // Recipe endpoints
   async createRecipe(recipeData) {
-    // If recipeData.image is a File, use FormData
-    if (recipeData.image && recipeData.image instanceof File) {
+    // If recipeData is FormData, send it directly
+    if (recipeData instanceof FormData) {
+      return this.request('/api/recipes', {
+        method: 'POST',
+        body: recipeData,
+        headers: {}, // Let browser set Content-Type for FormData
+      });
+    }
+    
+    // If recipeData.images contains files, use FormData
+    if (recipeData.images && recipeData.images.length > 0 && recipeData.images[0] instanceof File) {
       const formData = new FormData();
       for (const key in recipeData) {
         if (recipeData[key] !== undefined && recipeData[key] !== null) {
           if (key === 'ingredients' && Array.isArray(recipeData[key])) {
             formData.append(key, JSON.stringify(recipeData[key]));
           } else if (key === 'instruction_steps' && Array.isArray(recipeData[key])) {
-            formData.append(key, recipeData[key].join('\n'));
+            formData.append(key, JSON.stringify(recipeData[key]));
+          } else if (key === 'images') {
+            // Append each image file
+            recipeData.images.forEach((image) => {
+              formData.append('images', image, image.name);
+            });
           } else {
             formData.append(key, recipeData[key]);
           }
@@ -83,18 +96,18 @@ class ApiService {
       return this.request('/api/recipes', {
         method: 'POST',
         body: formData,
-        headers: {}, // Let browser set Content-Type
-      });
-    } else {
-      // Fallback to JSON
-      return this.request('/api/recipes', {
-        method: 'POST',
-        body: JSON.stringify(recipeData),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {}, // Let browser set Content-Type for FormData
       });
     }
+    
+    // Fallback to JSON
+    return this.request('/api/recipes', {
+      method: 'POST',
+      body: JSON.stringify(recipeData),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 
   async getUserRecipes() {

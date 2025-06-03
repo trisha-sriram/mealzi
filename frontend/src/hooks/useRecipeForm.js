@@ -12,7 +12,8 @@ export const useRecipeForm = () => {
     description: '',
     servings: 1,
     instruction_steps: [],
-    ingredients: []
+    ingredients: [],
+    images: [] // Changed from image to images array
   });
 
   const updateRecipeData = (field, value) => {

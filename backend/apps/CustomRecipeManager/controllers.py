@@ -36,9 +36,9 @@ import os
 
 def set_cors_headers():
     """Set CORS headers based on request origin"""
-    origin = request.headers.get('Origin', 'http://localhost:5173')
+    origin = request.headers.get('Origin', '*')
     response.headers['Access-Control-Allow-Origin'] = origin
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
     response.headers['Content-Type'] = 'application/json'
@@ -317,23 +317,13 @@ for _path in ('register', 'login', 'logout', 'user'):
 def create_recipe():
     set_cors_headers()
 
-    print("=== CREATE RECIPE DEBUG ===")
-    print("Request headers:", dict(request.headers))
-    print("Session in create_recipe:", dict(session))
-    print("Auth current_user:", auth.current_user)
-    print("=========================")
-
-    if not auth.current_user:
-        response.status = 401
-        return {"error": "Not authenticated", "session": dict(session)}
-
     try:
         # Handle both JSON and multipart form data
         if request.headers.get('content-type', '').startswith('multipart/form-data'):
             data = {}
             # Get form fields
             for key in request.forms:
-                if key == 'ingredients':
+                if key == 'ingredients' or key == 'instruction_steps':
                     try:
                         data[key] = json.loads(request.forms[key])
                     except:
@@ -341,17 +331,23 @@ def create_recipe():
                 else:
                     data[key] = request.forms[key]
             
-            # Handle image upload
-            if 'image' in request.files:
-                image_file = request.files['image']
-                if image_file:
-                    # Save the image in the existing uploads folder inside backend/apps/CustomRecipeManager/uploads
+            # Handle multiple image uploads (py4web style)
+            if 'images' in request.files:
+                image_files = request.files['images']
+                # Ensure image_files is always a list
+                if not isinstance(image_files, list):
+                    image_files = [image_files]
+                if image_files:
                     uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
                     os.makedirs(uploads_dir, exist_ok=True)
-                    filename = f"recipe_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.jpg"
-                    image_path = os.path.join(uploads_dir, filename)
-                    image_file.save(image_path)
-                    data['image'] = filename
+                    data['images'] = []
+                    for image_file in image_files:
+                        if image_file and hasattr(image_file, 'filename'):
+                            filename = f"recipe_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{len(data['images'])}.jpg"
+                            image_path = os.path.join(uploads_dir, filename)
+                            with open(image_path, 'wb') as f:
+                                f.write(image_file.file.read())
+                            data['images'].append(filename)
         else:
             data = request.json
 
@@ -376,10 +372,19 @@ def create_recipe():
             description=data['description'],
             instruction_steps=data['instruction_steps'],
             servings=data['servings'],
-            image=data.get('image'),  # Optional image field
+            image=data.get('images', [None])[0] if data.get('images') else None,  # Use first image as main image
             author=auth.current_user['id'],
             created_on=datetime.datetime.utcnow()
         )
+        
+        # Save additional images to recipe_multiple_images table
+        if data.get('images'):
+            for image_filename in data['images'][1:]:  # Skip first image as it's already saved as main image
+                # Insert into database using the filename directly
+                db.recipe_multiple_images.insert(
+                    recipe_id=recipe_id,
+                    multi_images=image_filename
+                )
         
         # Save ingredients to recipe_ingredient table
         ingredients = data.get('ingredients', [])
@@ -390,8 +395,9 @@ def create_recipe():
                 quantity_per_serving=ing.get('quantity_per_serving', 1)
             )
         
-        # Get the created recipe
+        # Get the created recipe with all images
         recipe = db.recipe[recipe_id]
+        recipe_images = db(db.recipe_multiple_images.recipe_id == recipe_id).select()
         
         return {
             "success": True,
@@ -404,6 +410,7 @@ def create_recipe():
                 "instruction_steps": recipe.instruction_steps,
                 "servings": recipe.servings,
                 "image": recipe.image,
+                "images": [img.multi_images for img in recipe_images],
                 "author": recipe.author
             }
         }
@@ -432,6 +439,13 @@ def get_recipes():
         # Format the recipes
         formatted_recipes = []
         for recipe in recipes:
+            # Get additional images for this recipe
+            recipe_images = db(db.recipe_multiple_images.recipe_id == recipe['recipe']['id']).select()
+            all_images = []
+            if recipe['recipe']['image']:
+                all_images.append(recipe['recipe']['image'])
+            all_images.extend([img.multi_images for img in recipe_images if img.multi_images])
+
             # Calculate nutrition for this recipe
             total_nutrition = {
                 'calories': 0,
@@ -462,6 +476,7 @@ def get_recipes():
                 'instruction_steps': recipe['recipe']['instruction_steps'],
                 'servings': recipe['recipe']['servings'],
                 'image': recipe['recipe']['image'],
+                'images': all_images,  # Include all images
                 'created_on': recipe['recipe']['created_on'],
                 'author': recipe['recipe']['author'],
                 'author_name': f"{recipe['auth_user']['first_name']} {recipe['auth_user']['last_name']}",
@@ -571,7 +586,7 @@ def get_recipe_detail(recipe_id):
             'author': recipe_query['recipe']['author'],
             'author_name': f"{recipe_query['auth_user']['first_name']} {recipe_query['auth_user']['last_name']}" if recipe_query['auth_user'] else 'Unknown Chef',
             'ingredients': [],
-            'images': [img['recipe_multiple_images']['multi_images'] for img in images] if images else []
+            'images': [img['multi_images'] for img in images] if images else []
         }
         
         # Initialize nutrition totals

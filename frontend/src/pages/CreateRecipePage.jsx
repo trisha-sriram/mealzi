@@ -20,11 +20,8 @@ const CreateRecipePage = () => {
     type: 'Dinner',
     description: '',
     servings: 4,
-    image: null,
+    images: [],
   });
-
-  // Add image preview state
-  const [imagePreview, setImagePreview] = useState(null);
 
   const [selectedIngredients, setSelectedIngredients] = useState([]);
   const [instructionSteps, setInstructionSteps] = useState(['']);
@@ -167,20 +164,42 @@ const CreateRecipePage = () => {
     setSubmitMessage({ text: '', type: '' });
 
     try {
-      const payload = {
+      // Create FormData object
+      const formData = new FormData();
+      
+      // Add basic recipe data
+      formData.append('name', recipeData.name);
+      formData.append('type', recipeData.type);
+      formData.append('description', recipeData.description);
+      formData.append('servings', recipeData.servings);
+      formData.append('instruction_steps', JSON.stringify(instructionSteps.filter(step => step.trim())));
+      
+      // Add ingredients as JSON string
+      formData.append('ingredients', JSON.stringify(
+        selectedIngredients.map(item => ({
+          id: item.ingredient.id,
+          quantity_per_serving: item.quantity
+        }))
+      ));
+
+      // Add images
+      if (recipeData.images && recipeData.images.length > 0) {
+        recipeData.images.forEach((image) => {
+          formData.append('images', image, image.name);
+        });
+      }
+
+      console.log('Submitting form data:', {
         name: recipeData.name,
         type: recipeData.type,
         description: recipeData.description,
         servings: recipeData.servings,
-        instruction_steps: instructionSteps.filter(step => step.trim()).join('\n'), // Include instructions
-        ingredients: selectedIngredients.map(item => ({
-          id: item.ingredient.id,
-          quantity_per_serving: item.quantity
-        })),
-        image: recipeData.image // Include image in payload
-      };
+        instruction_steps: instructionSteps.filter(step => step.trim()),
+        ingredients: selectedIngredients.length,
+        images: recipeData.images?.length || 0
+      });
 
-      const result = await apiService.createRecipe(payload);
+      const result = await apiService.createRecipe(formData);
       
       if (result.success) {
         setSubmitMessage({ 
@@ -195,20 +214,6 @@ const CreateRecipePage = () => {
       setSubmitMessage({ text: error.message || 'An error occurred', type: 'error' });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // Handle image change
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setRecipeData(prev => ({ ...prev, image: file }));
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
     }
   };
 

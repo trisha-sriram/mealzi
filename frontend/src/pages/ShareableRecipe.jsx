@@ -9,6 +9,8 @@ const ShareableRecipe = () => {
   const [recipe, setRecipe] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [allImages, setAllImages] = useState([]);
 
   useEffect(() => {
     loadRecipe();
@@ -22,6 +24,10 @@ const ShareableRecipe = () => {
       const response = await apiService.getRecipeDetail(id);
       if (response.success) {
         setRecipe(response.recipe);
+        setAllImages([
+          ...(response.recipe.image ? [response.recipe.image] : []),
+          ...(response.recipe.images || [])
+        ]);
       } else {
         setError(response.error || 'Recipe not found');
       }
@@ -124,23 +130,62 @@ const ShareableRecipe = () => {
         >
           {/* Recipe Header */}
           <div className="relative">
-            {recipe.image ? (
-              <img
-                src={`${apiService.baseURL}/uploads/${recipe.image}`}
-                alt={recipe.name}
-                className="w-full h-64 object-cover"
-              />
+            {allImages.length > 0 ? (
+              <div className="relative w-full h-80 bg-gradient-to-br from-emerald-50 via-white to-blue-50 rounded-3xl shadow-2xl border-4 border-white overflow-hidden">
+                <motion.img
+                  key={allImages[currentImageIndex]}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  src={`${apiService.baseURL}/uploads/${allImages[currentImageIndex]}`}
+                  alt={`${recipe.name} - Image ${currentImageIndex + 1}`}
+                  className="w-full h-full object-contain drop-shadow-lg"
+                  style={{ background: 'white' }}
+                />
+                {allImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white bg-opacity-70 text-emerald-600 rounded-full shadow-lg hover:bg-opacity-100 hover:scale-110 transition"
+                      aria-label="Previous image"
+                    >
+                      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setCurrentImageIndex((prev) => (prev + 1) % allImages.length)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white bg-opacity-70 text-emerald-600 rounded-full shadow-lg hover:bg-opacity-100 hover:scale-110 transition"
+                      aria-label="Next image"
+                    >
+                      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+                      {allImages.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentImageIndex(index)}
+                          className={`transition-all duration-200 w-3 h-3 rounded-full shadow ${index === currentImageIndex ? 'bg-emerald-500 scale-125' : 'bg-gray-300 scale-100'}`}
+                          aria-label={`Go to image ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+                <div className="absolute bottom-6 left-6 w-auto max-w-[90%] flex flex-col items-start">
+                  <div className="bg-gradient-to-r from-emerald-600 via-green-500 to-green-400 px-6 py-2 rounded-2xl shadow-lg flex flex-col items-start backdrop-blur-sm">
+                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-0.5 whitespace-nowrap drop-shadow-sm">{recipe.name}</h1>
+                    <span className="text-xs text-green-50 font-light drop-shadow-sm">by {recipe.author_name}</span>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="w-full h-64 bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
                 <span className="text-6xl">🍽️</span>
               </div>
             )}
-            <div className="absolute inset-0 bg-black bg-opacity-30 flex items-end">
-              <div className="p-6 text-white">
-                <h1 className="text-4xl font-bold mb-2">{recipe.name}</h1>
-                <p className="text-lg opacity-90">by {recipe.author_name}</p>
-              </div>
-            </div>
           </div>
 
           <div className="p-6">
@@ -195,20 +240,35 @@ const ShareableRecipe = () => {
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-gray-800 mb-4">Instructions</h2>
               <div className="space-y-4">
-                {recipe.instruction_steps?.split('\n').filter(step => step.trim()).map((step, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex gap-4 p-4 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold">
-                      {index + 1}
-                    </div>
-                    <p className="text-gray-700 leading-relaxed">{step.trim()}</p>
-                  </motion.div>
-                ))}
+                {(() => {
+                  let steps = [];
+                  try {
+                    steps = JSON.parse(recipe.instruction_steps);
+                    if (!Array.isArray(steps)) throw new Error();
+                  } catch {
+                    steps = recipe.instruction_steps
+                      ? recipe.instruction_steps
+                          .replace(/^\[|\]$/g, '')
+                          .split(',')
+                          .map(s => s.replace(/['"]/g, '').trim())
+                          .filter(Boolean)
+                      : [];
+                  }
+                  return steps.map((step, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="flex gap-4 p-4 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold">
+                        {index + 1}
+                      </div>
+                      <p className="text-gray-700 leading-relaxed">{step}</p>
+                    </motion.div>
+                  ));
+                })()}
               </div>
             </div>
 
