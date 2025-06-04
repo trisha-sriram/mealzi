@@ -11,10 +11,44 @@ const ShareableRecipe = () => {
   const [error, setError] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [allImages, setAllImages] = useState([]);
+  const [servings, setServings] = useState(0);
+  const [originalServings, setOriginalServings] = useState(0);
+  const [scaledIngredients, setScaledIngredients] = useState([]);
 
   useEffect(() => {
     loadRecipe();
   }, [id]);
+  
+  useEffect(() => {
+    if (recipe) {
+      setServings(recipe.servings);
+      setOriginalServings(recipe.servings);
+      setScaledIngredients(recipe.ingredients || []);
+    }
+  }, [recipe]);
+  
+  useEffect(() => {
+    if (recipe && recipe.ingredients && originalServings > 0) {
+      // Scale ingredients based on servings ratio
+      const scaleFactor = servings / originalServings;
+      
+      const scaled = recipe.ingredients.map(ingredient => {
+        const scaledQuantity = ingredient.quantity_per_serving * scaleFactor;
+        // Format the quantity to avoid too many decimal places
+        const formattedQuantity = scaledQuantity >= 10 
+          ? Math.round(scaledQuantity) 
+          : Number(scaledQuantity.toFixed(1));
+        
+        return {
+          ...ingredient,
+          scaled_quantity: formattedQuantity,
+          scaled_calories: Math.round(ingredient.calories_per_unit * formattedQuantity)
+        };
+      });
+      
+      setScaledIngredients(scaled);
+    }
+  }, [servings, originalServings, recipe]);
 
   const loadRecipe = async () => {
     setIsLoading(true);
@@ -58,6 +92,11 @@ const ShareableRecipe = () => {
       // You could add a toast notification here
       alert('Recipe link copied to clipboard!');
     });
+  };
+
+  const handleServingsChange = (newServings) => {
+    if (newServings < 1) return;
+    setServings(newServings);
   };
 
   if (isLoading) {
@@ -191,9 +230,49 @@ const ShareableRecipe = () => {
           <div className="p-6">
             {/* Recipe Info */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">{recipe.servings}</div>
+              <div className="text-center p-4 bg-green-50 rounded-lg flex flex-col items-center">
+                <div className="flex items-center gap-2 mb-2">
+                  <button 
+                    onClick={() => handleServingsChange(servings - 1)}
+                    disabled={servings <= 1}
+                    className={`w-6 h-6 flex items-center justify-center rounded-full ${
+                      servings <= 1 ? 'text-gray-300' : 'text-green-600 hover:bg-green-100'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                    </svg>
+                  </button>
+                  <span className="text-2xl font-bold text-green-600">{servings}</span>
+                  <button 
+                    onClick={() => handleServingsChange(servings + 1)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12M6 12h12" />
+                    </svg>
+                  </button>
+                  <button 
+                    onClick={() => handleServingsChange(originalServings)}
+                    disabled={servings === originalServings}
+                    className={`ml-2 w-6 h-6 flex items-center justify-center rounded-full ${
+                      servings === originalServings 
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-green-600 hover:bg-green-100'
+                    }`}
+                    title="Reset to original servings"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                </div>
                 <div className="text-sm text-gray-600">Servings</div>
+                {servings !== originalServings && (
+                  <div className="text-xs text-green-600 mt-1">
+                    (Original: {originalServings})
+                  </div>
+                )}
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg">
                 <div className="text-2xl font-bold text-blue-600">{recipe.type}</div>
@@ -215,11 +294,18 @@ const ShareableRecipe = () => {
 
             {/* Ingredients */}
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">Ingredients</h2>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                Ingredients
+                {servings !== originalServings && (
+                  <span className="ml-2 text-sm font-normal text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                    Scaled for {servings} servings
+                  </span>
+                )}
+              </h2>
               <div className="space-y-2">
-                {recipe.ingredients?.map((ingredient, index) => (
+                {scaledIngredients.map((ingredient, index) => (
                   <motion.div
-                    key={index}
+                    key={`${ingredient.id || index}-${index}`}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
@@ -227,9 +313,11 @@ const ShareableRecipe = () => {
                     style={{ minWidth: 0 }}
                   >
                     <span className="flex-1 truncate font-medium text-gray-800">{ingredient.name}</span>
-                    <span className="w-24 text-base text-black font-normal text-right whitespace-nowrap overflow-hidden truncate">{ingredient.quantity_per_serving} {ingredient.unit}</span>
+                    <span className="w-24 text-base text-black font-normal text-right whitespace-nowrap overflow-hidden truncate">
+                      {ingredient.scaled_quantity || ingredient.quantity_per_serving} {ingredient.unit}
+                    </span>
                     <span className="w-20 ml-4 text-base text-yellow-800 font-normal text-right break-words">
-                      {ingredient.calories} kcal
+                      {ingredient.scaled_calories || ingredient.calories} kcal
                     </span>
                   </motion.div>
                 ))}
