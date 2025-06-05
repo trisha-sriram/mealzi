@@ -1,9 +1,8 @@
 import { motion } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 
-function CtaSection() {
+function CtaSection({ onGetStarted }) {
   const [isInView, setIsInView] = useState(false);
-  const [email, setEmail] = useState("");
   const sectionRef = useRef(null);
 
   useEffect(() => {
@@ -26,13 +25,6 @@ function CtaSection() {
       }
     };
   }, []);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Handle submission logic here
-    alert(`Thank you for subscribing with: ${email}`);
-    setEmail("");
-  };
 
   return (
     <section
@@ -115,7 +107,7 @@ function CtaSection() {
                   >
                     <span className="inline-flex items-center px-4 py-2 rounded-full bg-white text-emerald-700 font-medium text-sm shadow-md">
                       <span className="mr-2">⭐</span>
-                      Trusted by over 10,000 home cooks
+                      Trusted by over 100 home cooks
                     </span>
                   </motion.div>
                 </div>
@@ -131,40 +123,22 @@ function CtaSection() {
                 transition={{ duration: 0.6, delay: 0.4 }}
               >
                 <div className="mb-6">
-                  <motion.div 
-                    className="inline-block px-3 py-1 rounded-full bg-lime-100 text-emerald-700 text-sm font-medium mb-4"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
-                    transition={{ duration: 0.4, delay: 0.6 }}
-                  >
-                    Limited Time Offer
-                  </motion.div>
-                  <h3 className="text-3xl font-bold text-gray-900 mb-3 font-cute">Get early access now</h3>
+                  <h3 className="text-3xl font-bold text-gray-900 mb-3 font-cute">Ready to start cooking?</h3>
                   <p className="text-gray-600 mb-6">
-                    Sign up to be among the first users of our web app. Get exclusive recipes and premium features free for the first 3 months.
+                    Join our community of home cooks and discover amazing recipes tailored to your ingredients. Start creating delicious meals today!
                   </p>
                 </div>
                 
                 <motion.form 
-                  onSubmit={handleSubmit}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onGetStarted();
+                  }}
                   className="space-y-4 mb-6"
                   initial={{ opacity: 0 }}
                   animate={isInView ? { opacity: 1 } : { opacity: 0 }}
                   transition={{ duration: 0.5, delay: 0.7 }}
                 >
-                  <div className="space-y-2">
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
-                    <input
-                      type="email"
-                      id="email"
-                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                      placeholder="your@email.com"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  
                   <motion.button
                     type="submit"
                     className="w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-lime-500 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all relative overflow-hidden group"
@@ -178,12 +152,8 @@ function CtaSection() {
                       whileHover={{ x: 200, opacity: 0.5 }}
                       transition={{ duration: 0.6 }}
                     />
-                    Join the waitlist
+                    Get Started Now
                   </motion.button>
-                  
-                  <p className="text-xs text-gray-500 text-center">
-                    By signing up, you agree to our <a href="#" className="text-emerald-600 hover:underline">Terms of Service</a> and <a href="#" className="text-emerald-600 hover:underline">Privacy Policy</a>.
-                  </p>
                 </motion.form>
                 
                 <div className="flex items-center space-x-4 justify-center">
@@ -208,8 +178,6 @@ function CtaSection() {
     </section>
   );
 }
-
-
 
 // Export both components
 export default CtaSection;

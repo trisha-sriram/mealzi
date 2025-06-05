@@ -295,9 +295,7 @@ const PublicRecipes = () => {
   const [typeQuery, setTypeQuery] = useState('');
   const [ingredientIds, setIngredientIds] = useState([]);
   const [matchAll, setMatchAll] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalRecipes, setTotalRecipes] = useState(0);
-  const [recipesPerPage, setRecipesPerPage] = useState(12);
   const [searchSummary, setSearchSummary] = useState('');
 
   const openRecipeModal = (recipeId) => {
@@ -315,8 +313,7 @@ const PublicRecipes = () => {
     setTypeQuery(type);
     setIngredientIds([]);
     setMatchAll(false);
-    setCurrentPage(1);
-    fetchBasicRecipes(name, type, 1);
+    fetchBasicRecipes(name, type);
     
     // Update search summary
     let summary = '';
@@ -330,7 +327,6 @@ const PublicRecipes = () => {
     setMatchAll(matchAll);
     setNameQuery('');
     setTypeQuery('');
-    setCurrentPage(1);
     
     if (ingredientIds.length === 0) {
       // If no ingredients, just reset to all recipes
@@ -346,18 +342,18 @@ const PublicRecipes = () => {
     }
   };
   
-  const fetchBasicRecipes = async (name = nameQuery, type = typeQuery, page = currentPage) => {
+  const fetchBasicRecipes = async (name = nameQuery, type = typeQuery) => {
     setLoading(true);
     try {
-      // If both name and type are empty, use the public recipes endpoint
+      // Always use the public recipes endpoint for simplicity
       let response;
       if (!name && !type) {
         response = await apiService.getPublicRecipes();
         setTotalRecipes(response.recipes?.length || 0);
         setRecipes(response.recipes || []);
       } else {
-        // Otherwise use the search endpoint
-        response = await apiService.searchRecipes(name, type, page, recipesPerPage);
+        // Use search endpoint but get all results
+        response = await apiService.searchRecipes(name, type, 1, 100);
         setTotalRecipes(response.total || 0);
         setRecipes(response.recipes || []);
       }
@@ -373,13 +369,12 @@ const PublicRecipes = () => {
     ingredients = ingredientIds,
     match = matchAll,
     name = nameQuery,
-    type = typeQuery,
-    page = currentPage
+    type = typeQuery
   ) => {
     setLoading(true);
     try {
       const response = await apiService.searchRecipesByIngredients(
-        ingredients, match, name, type, page, recipesPerPage
+        ingredients, match, name, type, 1, 100
       );
       setTotalRecipes(response.total || 0);
       setRecipes(response.recipes || []);
@@ -398,12 +393,7 @@ const PublicRecipes = () => {
     } else {
       fetchBasicRecipes();
     }
-  }, [currentPage, recipesPerPage]);
-
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []); // Remove pagination dependencies
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -535,64 +525,16 @@ const PublicRecipes = () => {
         
         {/* Recipe Grid */}
         {recipes.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {recipes.map((recipe, index) => (
-                <RecipeCard 
-                  key={recipe.id} 
-                  recipe={recipe} 
-                  index={index} 
-                  onViewRecipe={openRecipeModal}
-                />
-              ))}
-            </div>
-            
-            {/* Pagination */}
-            {totalRecipes > recipesPerPage && (
-              <div className="mt-12 flex justify-center">
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`px-4 py-2 rounded-md ${
-                      currentPage === 1 
-                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                    }`}
-                  >
-                    Previous
-                  </button>
-                  
-                  {/* Page Numbers */}
-                  {Array.from({ length: Math.ceil(totalRecipes / recipesPerPage) }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handlePageChange(i + 1)}
-                      className={`px-4 py-2 rounded-md ${
-                        currentPage === i + 1
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === Math.ceil(totalRecipes / recipesPerPage)}
-                    className={`px-4 py-2 rounded-md ${
-                      currentPage === Math.ceil(totalRecipes / recipesPerPage)
-                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                    }`}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {recipes.map((recipe, index) => (
+              <RecipeCard 
+                key={recipe.id} 
+                recipe={recipe} 
+                index={index} 
+                onViewRecipe={openRecipeModal}
+              />
+            ))}
+          </div>
         ) : (
           <div className="text-center py-16">
             <div className="text-6xl mb-4">🍽️</div>

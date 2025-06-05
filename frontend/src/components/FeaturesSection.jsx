@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 
-function FeaturesSection() {
+function FeaturesSection({ onGetStarted }) {
   const [isInView, setIsInView] = useState(false);
   const sectionRef = useRef(null);
 
@@ -157,27 +157,6 @@ function FeaturesSection() {
               <p className="text-gray-600">
                 {feature.description}
               </p>
-              
-              {/* Learn More Link */}
-              <motion.a
-                href="#"
-                className="inline-flex items-center text-emerald-600 font-medium mt-4 text-sm hover:text-emerald-700 transition-colors"
-                whileHover={{ x: 5 }}
-                transition={{ type: "spring", stiffness: 400 }}
-              >
-                Learn more
-                <svg
-                  className="w-4 h-4 ml-1"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </motion.a>
             </motion.div>
           ))}
         </motion.div>
@@ -190,7 +169,8 @@ function FeaturesSection() {
           transition={{ delay: 0.8, duration: 0.5 }}
         >
           <motion.button
-            className="bg-gradient-to-r from-emerald-500 to-lime-500 text-white py-3 px-8 rounded-lg font-medium text-lg shadow-lg hover:shadow-xl transition-shadow relative overflow-hidden group"
+            onClick={onGetStarted}
+            className="bg-gradient-to-r from-emerald-500 to-lime-500 text-white py-3 px-8 rounded-lg font-medium text-lg shadow-lg hover:shadow-xl transition-shadow relative overflow-hidden group cursor-pointer"
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -202,7 +182,7 @@ function FeaturesSection() {
               transition={{ duration: 0.6 }}
             />
             <span className="relative z-10 flex items-center gap-2">
-              Explore all features
+              Get Started Now
               <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"

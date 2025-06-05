@@ -331,17 +331,32 @@ const ShareableRecipe = () => {
                 {(() => {
                   let steps = [];
                   try {
+                    // First try to parse as JSON (for user-created recipes)
                     steps = JSON.parse(recipe.instruction_steps);
                     if (!Array.isArray(steps)) throw new Error();
                   } catch {
-                    steps = recipe.instruction_steps
-                      ? recipe.instruction_steps
+                    // Handle different instruction formats
+                    if (recipe.instruction_steps) {
+                      const instructionText = recipe.instruction_steps.trim();
+                      
+                      // Check if it's a single long instruction (like MealDB recipes)
+                      if (instructionText.includes('.') && !instructionText.startsWith('[')) {
+                        // Split by sentences ending with periods, but keep sentences together
+                        steps = instructionText
+                          .split(/(?<=[.!?])\s+(?=[A-Z])/)
+                          .map(s => s.trim())
+                          .filter(s => s.length > 10); // Filter out very short fragments
+                      } else {
+                        // Handle JSON-like strings or comma-separated values
+                        steps = instructionText
                           .replace(/^\[|\]$/g, '')
                           .split(',')
                           .map(s => s.replace(/['"]/g, '').trim())
-                          .filter(Boolean)
-                      : [];
+                          .filter(Boolean);
+                      }
+                    }
                   }
+                  
                   return steps.map((step, index) => (
                     <motion.div
                       key={index}

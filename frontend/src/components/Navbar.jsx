@@ -184,8 +184,8 @@ function Navbar() {
                         <>
                             <motion.button 
                                 className="px-5 py-2 text-gray-800 font-medium hover:text-emerald-600 transition-colors duration-200 relative overflow-hidden group"
-                                whileHover={{ y: -2 }} 
-                                whileTap={{ y: 0 }} 
+                                whileHover={{ scale: 1.02 }} 
+                                whileTap={{ scale: 0.98 }} 
                                 onClick={openSignIn}
                             >
                                 Sign in
@@ -197,19 +197,12 @@ function Navbar() {
                                 />
                             </motion.button>
                             <motion.button 
-                                className="relative group" 
-                                whileHover={{ scale: 1.03 }} 
-                                whileTap={{ scale: 0.97 }} 
+                                className="relative group bg-gradient-to-r from-emerald-600 to-lime-500 text-white font-medium px-5 py-2 rounded-lg hover:from-emerald-700 hover:to-lime-600 transition-all duration-200" 
+                                whileHover={{ scale: 1.02 }} 
+                                whileTap={{ scale: 0.98 }} 
                                 onClick={openSignUp}
                             >
-                                <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-emerald-600 to-lime-500 rounded-lg opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
-                                <motion.span 
-                                    className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent rounded-lg" 
-                                    initial={{ x: -100, opacity: 0 }} 
-                                    whileHover={{ x: 200, opacity: 0.5 }} 
-                                    transition={{ duration: 0.6 }} 
-                                />
-                                <span className="relative inline-flex items-center gap-1 text-white font-medium px-5 py-2">
+                                <span className="relative inline-flex items-center gap-1">
                                     Get Started
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />

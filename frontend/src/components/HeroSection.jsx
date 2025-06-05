@@ -2,7 +2,7 @@ import food from '../assets/hero-section/food.png'
 import { motion } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 
-function HeroSection() {
+function HeroSection({ onGetStarted }) {
     const constraintsRef = useRef(null);
     const [isHovering, setIsHovering] = useState(false);
     
@@ -117,7 +117,7 @@ function HeroSection() {
                         className="bg-white/20 backdrop-blur-sm px-6 py-3 rounded-full text-sm font-medium text-emerald-900 flex items-center gap-2 border border-white/30 shadow-sm"
                     >
                         <span className="animate-pulse text-emerald-600">●</span> 
-                        New! 100+ Summer Recipes Added
+                        New! Recipe sharing and ingredients matching
                     </motion.div>
                     
                     <motion.h1 
@@ -171,12 +171,12 @@ function HeroSection() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6, duration: 0.5 }}
                         whileHover={{
-                            scale: 1.05, 
-                            boxShadow: "0px 8px 20px rgba(0, 0, 0, 0.1)",
-                            background: "#BEF264"
+                            scale: 1.02, 
+                            boxShadow: "0px 8px 20px rgba(0, 0, 0, 0.1)"
                         }} 
-                        whileTap={{ scale: 0.95 }} 
-                        className="bg-white text-black px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-200 shadow-lg flex items-center gap-2"
+                        whileTap={{ scale: 0.98 }} 
+                        onClick={onGetStarted}
+                        className="bg-white hover:bg-lime-100 text-black px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-200 shadow-lg flex items-center gap-2 cursor-pointer"
                     >
                         <motion.span
                             animate={{
@@ -215,7 +215,7 @@ function HeroSection() {
                                     scale: 1.2,
                                     transition: { duration: 0.2 }
                                 }}
-                                className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md text-xl cursor-pointer"
+                                className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md text-xl"
                             >
                                 {emoji}
                             </motion.div>
@@ -236,7 +236,7 @@ function HeroSection() {
                                     repeatDelay: 5
                                 }}
                             >
-                                1000+
+                                100+
                             </motion.span>
                             <span className="text-emerald-900 font-semibold">recipes</span>
                         </motion.div>
@@ -257,7 +257,7 @@ function HeroSection() {
                             ))}
                         </div>
                         <div className="text-sm">
-                            <span className="text-emerald-900 font-semibold">500+</span> people cooking right now
+                            <span className="text-emerald-900 font-semibold">50+</span> people cooking right now
                         </div>
                     </motion.div>
                 </motion.div>

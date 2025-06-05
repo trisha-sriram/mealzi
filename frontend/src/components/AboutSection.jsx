@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 
-function AboutSection() {
+function AboutSection({ onGetStarted }) {
     return (
         <section id="about" className="py-24 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
             <div className="max-w-7xl mx-auto px-6 md:px-12">
@@ -107,9 +107,9 @@ function AboutSection() {
                     viewport={{ once: true }}
                 >
                     {[
-                        { number: "10,000+", label: "Recipes Created", icon: "📝" },
-                        { number: "5,000+", label: "Happy Users", icon: "😊" },
-                        { number: "50,000+", label: "Meals Planned", icon: "🗓️" }
+                        { number: "100+", label: "Recipes Available", icon: "📝" },
+                        { number: "50+", label: "Happy Users", icon: "😊" },
+                        { number: "500+", label: "Meals Planned", icon: "🗓️" }
                     ].map((stat, index) => (
                         <motion.div
                             key={stat.label}
@@ -137,10 +137,11 @@ function AboutSection() {
                 >
                     <h3 className="text-2xl font-bold text-gray-900 mb-4">Ready to Transform Your Cooking?</h3>
                     <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-                        Join thousands of home cooks who have already discovered the joy of organized, nutritious meal planning.
+                        Join home cooks who have already discovered the joy of organized, nutritious meal planning.
                     </p>
                     <motion.button
-                        className="bg-gradient-to-r from-emerald-600 to-lime-500 text-white font-semibold px-8 py-4 rounded-full hover:shadow-lg transition-all duration-300"
+                        onClick={onGetStarted}
+                        className="bg-gradient-to-r from-emerald-600 to-lime-500 text-white font-semibold px-8 py-4 rounded-full hover:shadow-lg transition-all duration-300 cursor-pointer"
                         whileHover={{ scale: 1.05, y: -2 }}
                         whileTap={{ scale: 0.95 }}
                     >

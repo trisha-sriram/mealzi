@@ -77,16 +77,28 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
     if (!instructionText) return [];
     let steps = [];
     try {
+      // First try to parse as JSON (for user-created recipes)
       steps = JSON.parse(instructionText);
       if (!Array.isArray(steps)) throw new Error();
     } catch {
-      steps = instructionText
-        ? instructionText
-            .replace(/^\[|\]$/g, '')
-            .split(',')
-            .map(s => s.replace(/['"]/g, '').trim())
-            .filter(Boolean)
-        : [];
+      // Handle different instruction formats
+      const text = instructionText.trim();
+      
+      // Check if it's a single long instruction (like MealDB recipes)
+      if (text.includes('.') && !text.startsWith('[')) {
+        // Split by sentences ending with periods, but keep sentences together
+        steps = text
+          .split(/(?<=[.!?])\s+(?=[A-Z])/)
+          .map(s => s.trim())
+          .filter(s => s.length > 10); // Filter out very short fragments
+      } else {
+        // Handle JSON-like strings or comma-separated values
+        steps = text
+          .replace(/^\[|\]$/g, '')
+          .split(',')
+          .map(s => s.replace(/['"]/g, '').trim())
+          .filter(Boolean);
+      }
     }
     return steps;
   };
