@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api';
+import RecipeDetailModal from '../components/RecipeDetailModal';
 
 const API_BASE_URL = apiService.baseURL;
 
@@ -14,6 +15,8 @@ function RecipeDashboard() {
   const [recipeOfTheDay, setRecipeOfTheDay] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [floatingElements, setFloatingElements] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
 
   // Subtle floating elements animation
   useEffect(() => {
@@ -48,11 +51,13 @@ function RecipeDashboard() {
       // Set user recipes directly from the response
       setUserRecipes(userResponse.recipes || []);
       
-      // Set recipe of the day from all recipes
+      // Always pick recipeOfTheDay from the latest userRecipes
       const allRecipes = userResponse.recipes || [];
       if (allRecipes.length > 0) {
         const randomRecipe = allRecipes[Math.floor(Math.random() * allRecipes.length)];
         setRecipeOfTheDay(randomRecipe);
+      } else {
+        setRecipeOfTheDay(null);
       }
     } catch (error) {
       console.error('Error loading recipes:', error);
@@ -65,7 +70,21 @@ function RecipeDashboard() {
     navigate('/create-recipe');
   };
 
-  const RecipeCard = ({ recipe, isUserRecipe = false, isRecipeOfDay = false }) => (
+  const openRecipeModal = (recipeId) => {
+    setSelectedRecipeId(recipeId);
+    setIsModalOpen(true);
+  };
+  const closeRecipeModal = () => {
+    setIsModalOpen(false);
+    setSelectedRecipeId(null);
+  };
+  const handleRecipeDeleted = () => {
+    closeRecipeModal();
+    loadRecipes();
+    // recipeOfTheDay will be updated in loadRecipes
+  };
+
+  const RecipeCard = ({ recipe, isUserRecipe = false, isRecipeOfDay = false, onViewRecipe }) => (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
@@ -152,7 +171,7 @@ function RecipeDashboard() {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => navigate(`/recipe/${recipe.id}`)}
+          onClick={() => onViewRecipe(recipe.id)}
           className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2 px-4 rounded-xl font-medium hover:from-emerald-600 hover:to-green-700 transition-all duration-200 shadow-sm"
         >
           View Recipe
@@ -277,7 +296,7 @@ function RecipeDashboard() {
               ⭐ Recipe of the Day
             </h2>
             <div className="max-w-md mx-auto">
-              <RecipeCard recipe={recipeOfTheDay} isRecipeOfDay={true} />
+              <RecipeCard recipe={recipeOfTheDay} isRecipeOfDay={true} onViewRecipe={openRecipeModal} />
             </div>
           </motion.div>
         )}
@@ -338,7 +357,7 @@ function RecipeDashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <RecipeCard recipe={recipe} isUserRecipe={true} />
+                  <RecipeCard recipe={recipe} isUserRecipe={true} onViewRecipe={openRecipeModal} />
                 </motion.div>
               ))}
             </div>
@@ -365,6 +384,14 @@ function RecipeDashboard() {
           )}
         </motion.div>
       </div>
+
+      <RecipeDetailModal
+        recipeId={selectedRecipeId}
+        isOpen={isModalOpen}
+        onClose={closeRecipeModal}
+        currentUser={user}
+        onRecipeDeleted={handleRecipeDeleted}
+      />
     </div>
   );
 }

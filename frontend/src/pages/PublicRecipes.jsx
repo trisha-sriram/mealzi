@@ -287,7 +287,7 @@ const PublicRecipes = () => {
   const [error, setError] = useState(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   // Search state
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' or 'ingredients'
@@ -306,6 +306,12 @@ const PublicRecipes = () => {
   const closeRecipeModal = () => {
     setIsModalOpen(false);
     setSelectedRecipeId(null);
+  };
+
+  const handleRecipeDeleted = () => {
+    closeRecipeModal();
+    // Optionally refresh public recipes if you want to remove deleted ones
+    fetchBasicRecipes();
   };
 
   const handleBasicSearch = (name, type) => {
@@ -562,6 +568,8 @@ const PublicRecipes = () => {
           recipeId={selectedRecipeId}
           isOpen={isModalOpen}
           onClose={closeRecipeModal}
+          currentUser={user}
+          onRecipeDeleted={handleRecipeDeleted}
         />
       )}
     </div>

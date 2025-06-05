@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import apiService from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const ShareableRecipe = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [recipe, setRecipe] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -97,6 +99,21 @@ const ShareableRecipe = () => {
   const handleServingsChange = (newServings) => {
     if (newServings < 1) return;
     setServings(newServings);
+  };
+
+  const handleEdit = () => {
+    navigate(`/create-recipe?edit=${id}`);
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this recipe? This action cannot be undone.')) return;
+    try {
+      await apiService.deleteRecipe(id);
+      alert('Recipe deleted successfully.');
+      navigate('/dashboard');
+    } catch (err) {
+      alert('Failed to delete recipe.');
+    }
   };
 
   if (isLoading) {
@@ -392,6 +409,24 @@ const ShareableRecipe = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Edit/Delete Buttons for Owner */}
+            {user && recipe && user.id === recipe.author && (
+              <div className="flex justify-center gap-4 p-6 border-t border-gray-200 mb-8">
+                <button
+                  onClick={handleEdit}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-all"
+                >
+                  Edit Recipe
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-all"
+                >
+                  Delete Recipe
+                </button>
               </div>
             )}
 

@@ -39,6 +39,8 @@ function RecipeCard({
   isBookmarked = false,
   onBookmarkToggle, // Function to call when bookmark is clicked
   className,
+  onViewRecipe, 
+  id, 
 }) {
   return (
     <motion.div
@@ -112,6 +114,15 @@ function RecipeCard({
             </div>
           )}
         </div>
+        {/* Add main action button for viewing recipe */}
+        {onViewRecipe && (
+          <button
+            className="mt-4 w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2 px-4 rounded-xl font-medium hover:from-emerald-600 hover:to-green-700 transition-all duration-200 shadow-sm"
+            onClick={() => onViewRecipe(id)}
+          >
+            View Recipe
+          </button>
+        )}
       </div>
     </motion.div>
   );

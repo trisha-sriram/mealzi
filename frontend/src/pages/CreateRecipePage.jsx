@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import RecipeDetailsSection from '../components/RecipeDetailsSection';
 import InstructionsSection from '../components/InstructionsSection';
@@ -10,6 +10,7 @@ import apiService from '../services/api';
 
 const CreateRecipePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState({ text: '', type: '' });
@@ -26,12 +27,79 @@ const CreateRecipePage = () => {
   const [selectedIngredients, setSelectedIngredients] = useState([]);
   const [instructionSteps, setInstructionSteps] = useState(['']);
 
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editRecipeId, setEditRecipeId] = useState(null);
+
+  // Add state for existing and new images
+  const [existingImages, setExistingImages] = useState([]); // URLs/filenames from backend
+  const [newImages, setNewImages] = useState([]); // File objects
+
   const steps = [
     { id: 'details', title: 'Recipe Details', icon: '📝' },
     { id: 'ingredients', title: 'Ingredients', icon: '🥕' },
     { id: 'instructions', title: 'Instructions', icon: '👨‍🍳' },
     { id: 'review', title: 'Review & Create', icon: '✅' },
   ];
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const editId = params.get('edit');
+    if (editId) {
+      setIsEditMode(true);
+      setEditRecipeId(editId);
+      // Fetch recipe and prefill
+      apiService.getRecipeDetail(editId).then(res => {
+        if (res.success) {
+          const r = res.recipe;
+          setRecipeData({
+            name: r.name,
+            type: r.type,
+            description: r.description,
+            servings: r.servings,
+            images: [], // Not used for edit mode
+          });
+          setExistingImages([r.image, ...(r.images || [])].filter(Boolean));
+          // Robustly parse instructions
+          let steps = r.instruction_steps;
+          if (typeof steps === 'string') {
+            try {
+              const parsed = JSON.parse(steps);
+              if (Array.isArray(parsed)) {
+                steps = parsed;
+              } else if (typeof parsed === 'string') {
+                steps = [parsed];
+              } else {
+                steps = [steps];
+              }
+            } catch {
+              // If it's a string like "['eat']", remove brackets and quotes
+              if (/^\[.*\]$/.test(steps)) {
+                steps = steps.replace(/^\[|\]$/g, '').split(',').map(s => s.replace(/['"]/g, '').trim()).filter(Boolean);
+              } else {
+                steps = [steps];
+              }
+            }
+          }
+          setInstructionSteps(Array.isArray(steps) ? steps : [steps]);
+          setSelectedIngredients((r.ingredients || []).map(ing => ({ ingredient: ing, quantity: ing.quantity_per_serving })));
+        }
+      });
+    } else {
+      setIsEditMode(false);
+      setEditRecipeId(null);
+      setRecipeData({
+        name: '',
+        type: 'Dinner',
+        description: '',
+        servings: 4,
+        images: [],
+      });
+      setInstructionSteps(['']);
+      setSelectedIngredients([]);
+      setExistingImages([]);
+      setNewImages([]);
+    }
+  }, [location.search]);
 
   const updateRecipeData = (field, value) => {
     setRecipeData(prev => ({ ...prev, [field]: value }));
@@ -154,6 +222,20 @@ const CreateRecipePage = () => {
     }
   };
 
+  // Update image handlers
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setNewImages(prev => [...prev, ...files]);
+    }
+  };
+  const removeExistingImage = (index) => {
+    setExistingImages(prev => prev.filter((_, i) => i !== index));
+  };
+  const removeNewImage = (index) => {
+    setNewImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     if (!validateCurrentStep()) {
       setSubmitMessage({ text: 'Please complete all required fields', type: 'error' });
@@ -164,30 +246,20 @@ const CreateRecipePage = () => {
     setSubmitMessage({ text: '', type: '' });
 
     try {
-      // Create FormData object
-      const formData = new FormData();
-      
-      // Add basic recipe data
+      let formData = new FormData();
       formData.append('name', recipeData.name);
       formData.append('type', recipeData.type);
       formData.append('description', recipeData.description);
       formData.append('servings', recipeData.servings);
       formData.append('instruction_steps', JSON.stringify(instructionSteps.filter(step => step.trim())));
-      
-      // Add ingredients as JSON string
-      formData.append('ingredients', JSON.stringify(
-        selectedIngredients.map(item => ({
-          id: item.ingredient.id,
-          quantity_per_serving: item.quantity
-        }))
-      ));
-
-      // Add images
-      if (recipeData.images && recipeData.images.length > 0) {
-        recipeData.images.forEach((image) => {
-          formData.append('images', image, image.name);
-        });
-      }
+      formData.append('ingredients', JSON.stringify(selectedIngredients.map(item => ({
+        id: item.ingredient.id,
+        quantity_per_serving: item.quantity
+      }))));
+      // Existing images to keep
+      formData.append('existing_images', JSON.stringify(existingImages));
+      // New images to upload
+      newImages.forEach(img => formData.append('images', img, img.name));
 
       console.log('Submitting form data:', {
         name: recipeData.name,
@@ -196,19 +268,17 @@ const CreateRecipePage = () => {
         servings: recipeData.servings,
         instruction_steps: instructionSteps.filter(step => step.trim()),
         ingredients: selectedIngredients.length,
-        images: recipeData.images?.length || 0
+        images: newImages.length
       });
 
-      const result = await apiService.createRecipe(formData);
-      
-      if (result.success) {
-        setSubmitMessage({ 
-          text: 'Recipe created successfully! Redirecting to dashboard...', 
-          type: 'success' 
-        });
-        setTimeout(() => navigate('/dashboard'), 2000);
+      if (isEditMode && editRecipeId) {
+        await apiService.updateRecipe(editRecipeId, formData, true);
+        setSubmitMessage({ text: 'Recipe updated successfully!', type: 'success' });
+        setTimeout(() => navigate('/dashboard'), 1000);
       } else {
-        setSubmitMessage({ text: result.message || 'Failed to create recipe', type: 'error' });
+        await apiService.createRecipe(formData);
+        setSubmitMessage({ text: 'Recipe created successfully!', type: 'success' });
+        setTimeout(() => navigate('/dashboard'), 1000);
       }
     } catch (error) {
       setSubmitMessage({ text: error.message || 'An error occurred', type: 'error' });
@@ -222,13 +292,19 @@ const CreateRecipePage = () => {
       case 0:
         return (
           <RecipeDetailsSection
+            key={`details-${isEditMode ? editRecipeId : 'new'}`}
             recipeData={recipeData}
             updateRecipeData={updateRecipeData}
+            existingImages={existingImages}
+            newImages={newImages}
+            onImageChange={handleImageChange}
+            onRemoveExistingImage={removeExistingImage}
+            onRemoveNewImage={removeNewImage}
           />
         );
       case 1:
         return (
-          <div className="space-y-6">
+          <div className="space-y-6" key={`ingredients-${isEditMode ? editRecipeId : 'new'}`}>
             <IngredientSearchInput onAddIngredient={addIngredient} />
             <SelectedIngredientsList
               ingredients={selectedIngredients}
@@ -240,6 +316,7 @@ const CreateRecipePage = () => {
       case 2:
         return (
           <InstructionsSection
+            key={`instructions-${isEditMode ? editRecipeId : 'new'}`}
             steps={instructionSteps}
             onAddStep={addInstructionStep}
             onUpdateStep={updateInstructionStep}
@@ -249,7 +326,7 @@ const CreateRecipePage = () => {
         );
       case 3:
         return (
-          <div className="space-y-6">
+          <div className="space-y-6" key={`review-${isEditMode ? editRecipeId : 'new'}`}>
             <div className="bg-gray-50 p-6 rounded-lg">
               <h3 className="text-lg font-semibold mb-4">Recipe Summary</h3>
               <div className="grid grid-cols-1 gap-6">

@@ -1295,5 +1295,123 @@ def search_recipes_by_ingredients_options():
     set_cors_headers()
     return ""
 
+@action('api/recipes/<recipe_id>', method=['PUT', 'PATCH'])
+@action.uses(db, session, auth.user)
+def update_recipe(recipe_id):
+    set_cors_headers()
+    if not auth.current_user:
+        response.status = 401
+        return {"error": "Not authenticated"}
+    recipe = db.recipe[recipe_id]
+    if not recipe:
+        response.status = 404
+        return {"error": "Recipe not found"}
+    if recipe.author != auth.current_user['id']:
+        response.status = 403
+        return {"error": "You are not the author of this recipe"}
+
+    # Support both JSON and multipart/form-data
+    if request.headers.get('content-type', '').startswith('multipart/form-data'):
+        data = {}
+        for key in request.forms:
+            if key in ['ingredients', 'instruction_steps', 'existing_images']:
+                try:
+                    data[key] = json.loads(request.forms[key])
+                except:
+                    data[key] = []
+            else:
+                data[key] = request.forms[key]
+        # Handle new image uploads
+        new_image_files = request.files.get('images', [])
+        if not isinstance(new_image_files, list):
+            new_image_files = [new_image_files] if new_image_files else []
+        uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
+        os.makedirs(uploads_dir, exist_ok=True)
+        new_filenames = []
+        for image_file in new_image_files:
+            if image_file and hasattr(image_file, 'filename'):
+                filename = f"recipe_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{image_file.filename}"
+                image_path = os.path.join(uploads_dir, filename)
+                with open(image_path, 'wb') as f:
+                    f.write(image_file.file.read())
+                new_filenames.append(filename)
+        # Images to keep
+        existing_images = data.get('existing_images', [])
+        # Remove images not in existing_images
+        all_db_images = [recipe.image] if recipe.image else []
+        all_db_images += [img.multi_images for img in db(db.recipe_multiple_images.recipe_id == recipe_id).select()]
+        to_remove = [img for img in all_db_images if img not in existing_images]
+        for img in to_remove:
+            # Remove from DB and filesystem
+            db(db.recipe_multiple_images.recipe_id == recipe_id and db.recipe_multiple_images.multi_images == img).delete()
+            if recipe.image == img:
+                db.recipe[recipe_id] = dict(image=None)
+            img_path = os.path.join(uploads_dir, img)
+            if os.path.exists(img_path):
+                try:
+                    os.remove(img_path)
+                except Exception:
+                    pass
+        # Add new images to DB
+        all_images = existing_images + new_filenames
+        # First image is main image
+        db.recipe[recipe_id] = dict(image=all_images[0] if all_images else None)
+        # Remove all old additional images, re-add those in all_images[1:]
+        db(db.recipe_multiple_images.recipe_id == recipe_id).delete()
+        for img in all_images[1:]:
+            db.recipe_multiple_images.insert(recipe_id=recipe_id, multi_images=img)
+        # Update other fields
+        updatable_fields = ['name', 'type', 'description', 'instruction_steps', 'servings']
+        update_dict = {field: data[field] for field in updatable_fields if field in data}
+        if update_dict:
+            db.recipe[recipe_id] = update_dict
+        # Update ingredients if provided
+        if 'ingredients' in data:
+            db(db.recipe_ingredient.recipe_id == recipe_id).delete()
+            for ing in data['ingredients']:
+                db.recipe_ingredient.insert(
+                    recipe_id=recipe_id,
+                    ingredient_id=ing['id'],
+                    quantity_per_serving=ing.get('quantity_per_serving', 1)
+                )
+        return {"success": True, "message": "Recipe updated successfully"}
+    else:
+        # Fallback to JSON (no image update)
+        data = request.json or {}
+        updatable_fields = ['name', 'type', 'description', 'instruction_steps', 'servings']
+        for field in updatable_fields:
+            if field in data:
+                recipe[field] = data[field]
+        db.recipe[recipe_id] = recipe
+        if 'ingredients' in data:
+            db(db.recipe_ingredient.recipe_id == recipe_id).delete()
+            for ing in data['ingredients']:
+                db.recipe_ingredient.insert(
+                    recipe_id=recipe_id,
+                    ingredient_id=ing['id'],
+                    quantity_per_serving=ing.get('quantity_per_serving', 1)
+                )
+        return {"success": True, "message": "Recipe updated successfully"}
+
+@action('api/recipes/<recipe_id>', method=['DELETE'])
+@action.uses(db, session, auth.user)
+def delete_recipe(recipe_id):
+    set_cors_headers()
+    if not auth.current_user:
+        response.status = 401
+        return {"error": "Not authenticated"}
+    recipe = db.recipe[recipe_id]
+    if not recipe:
+        response.status = 404
+        return {"error": "Recipe not found"}
+    if recipe.author != auth.current_user['id']:
+        response.status = 403
+        return {"error": "You are not the author of this recipe"}
+    # Delete related ingredients and images
+    db(db.recipe_ingredient.recipe_id == recipe_id).delete()
+    db(db.recipe_multiple_images.recipe_id == recipe_id).delete()
+    db(db.recipe.id == recipe_id).delete()
+    return {"success": True, "message": "Recipe deleted successfully"}
+
 
 

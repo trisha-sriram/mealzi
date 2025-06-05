@@ -4,7 +4,7 @@ import apiService from '../services/api';
 
 const API_BASE_URL = apiService.baseURL;
 
-const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
+const RecipeDetailModal = ({ recipeId, isOpen, onClose, currentUser, onRecipeDeleted }) => {
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -131,6 +131,22 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
 
   const prevImage = () => {
     setCurrentImageIndex((prev) => (prev - 1 + recipe.images.length) % recipe.images.length);
+  };
+
+  const handleEdit = () => {
+    // Redirect to edit page with recipeId (implement edit mode in CreateRecipePage)
+    window.location.href = `/create-recipe?edit=${recipeId}`;
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this recipe? This action cannot be undone.')) return;
+    try {
+      await apiService.deleteRecipe(recipeId);
+      if (onRecipeDeleted) onRecipeDeleted(recipeId);
+      onClose();
+    } catch (err) {
+      alert('Failed to delete recipe.');
+    }
   };
 
   if (!isOpen) return null;
@@ -409,6 +425,23 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
                     )}
                   </div>
                 </div>
+
+                {recipe && currentUser && (currentUser.id == recipe.author) && (
+                  <div className="flex justify-end gap-4 p-6 border-t border-gray-200">
+                    <button
+                      onClick={handleEdit}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-all"
+                    >
+                      Edit Recipe
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-all"
+                    >
+                      Delete Recipe
+                    </button>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>

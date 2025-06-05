@@ -198,6 +198,29 @@ class ApiService {
       body: JSON.stringify(contactData),
     });
   }
+
+  async updateRecipe(recipeId, recipeData, isFormData = false) {
+    if (isFormData && recipeData instanceof FormData) {
+      return this.request(`/api/recipes/${recipeId}`, {
+        method: 'PUT',
+        body: recipeData,
+        headers: {}, // Let browser set Content-Type
+      });
+    }
+    return this.request(`/api/recipes/${recipeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(recipeData),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  async deleteRecipe(recipeId) {
+    return this.request(`/api/recipes/${recipeId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export default new ApiService(); 

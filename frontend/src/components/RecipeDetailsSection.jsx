@@ -2,7 +2,7 @@ import React from 'react';
 
 const RECIPE_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Dessert', 'Drink'];
 
-const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
+const RecipeDetailsSection = ({ recipeData, updateRecipeData, existingImages = [], newImages = [], onImageChange, onRemoveExistingImage, onRemoveNewImage }) => {
   // Initialize images array if it doesn't exist
   if (!recipeData.images) {
     updateRecipeData('images', []);
@@ -132,7 +132,7 @@ const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
                     type="file"
                     accept="image/*"
                     multiple
-                    onChange={handleImageChange}
+                    onChange={onImageChange}
                     className="sr-only"
                   />
                 </label>
@@ -143,18 +143,38 @@ const RecipeDetailsSection = ({ recipeData, updateRecipeData }) => {
           </div>
 
           {/* Image Previews */}
-          {recipeData.images && recipeData.images.length > 0 && (
+          {(existingImages.length > 0 || newImages.length > 0) && (
             <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {recipeData.images.map((image, index) => (
-                <div key={index} className="relative group">
+              {/* Existing images (from backend) */}
+              {existingImages.map((img, idx) => (
+                <div key={`existing-${idx}`} className="relative group">
                   <img
-                    src={URL.createObjectURL(image)}
-                    alt={`Preview ${index + 1}`}
+                    src={img.startsWith('http') ? img : `/uploads/${img}`}
+                    alt={`Recipe image ${idx + 1}`}
                     className="w-full h-32 object-cover rounded-lg"
                   />
                   <button
                     type="button"
-                    onClick={() => removeImage(index)}
+                    onClick={() => onRemoveExistingImage(idx)}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              {/* New images (File objects) */}
+              {newImages.map((img, idx) => (
+                <div key={`new-${idx}`} className="relative group">
+                  <img
+                    src={URL.createObjectURL(img)}
+                    alt={`New image ${idx + 1}`}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onRemoveNewImage(idx)}
                     className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
