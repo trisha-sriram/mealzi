@@ -354,6 +354,7 @@ class TheMealDBImporter:
                             description=description,
                             instruction_steps=recipe_instructions,
                             servings=4,  # Default servings
+                            image=recipe_detail.get('strMealThumb', ''),  # Use original MealDB image URL
                             author=admin_user_id,
                             created_on=datetime.utcnow()
                         )

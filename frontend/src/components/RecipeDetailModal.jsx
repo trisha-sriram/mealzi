@@ -268,7 +268,7 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose }) => {
                     <div className="flex justify-center">
                       <div className="relative w-full max-w-md">
                         <img
-                          src={`/uploads/${allImages[currentImageIndex]}`}
+                          src={allImages[currentImageIndex].startsWith('http') ? allImages[currentImageIndex] : `/uploads/${allImages[currentImageIndex]}`}
                           alt={`${recipe.name} - Image ${currentImageIndex + 1}`}
                           className="w-full h-64 object-cover rounded-2xl shadow-lg"
                         />

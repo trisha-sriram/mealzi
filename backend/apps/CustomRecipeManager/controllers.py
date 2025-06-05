@@ -372,7 +372,7 @@ def create_recipe():
             description=data['description'],
             instruction_steps=data['instruction_steps'],
             servings=data['servings'],
-            image=data.get('images', [None])[0] if data.get('images') else None,  # Use first image as main image
+            image=data.get('images', [None])[0] if data.get('images') else None,  # Store filename for uploaded images
             author=auth.current_user['id'],
             created_on=datetime.datetime.utcnow()
         )
@@ -494,6 +494,7 @@ def get_recipes():
         response.status = 500
         return {"error": "Failed to get recipes"}
 
+
 @action('api/recipes', method=['OPTIONS'])
 def recipes_options():
     set_cors_headers()
@@ -518,6 +519,35 @@ def get_public_recipes():
         # Format the recipes
         formatted_recipes = []
         for recipe in recipes:
+            # Get additional images for this recipe
+            recipe_images = db(db.recipe_multiple_images.recipe_id == recipe['recipe']['id']).select()
+            all_images = []
+            if recipe['recipe']['image']:
+                all_images.append(recipe['recipe']['image'])
+            all_images.extend([img.multi_images for img in recipe_images if img.multi_images])
+
+            # Calculate nutrition for this recipe
+            total_nutrition = {
+                'calories': 0,
+                'protein': 0,
+                'carbs': 0,
+                'fat': 0
+            }
+            recipe_ingredients = db(db.recipe_ingredient.recipe_id == recipe['recipe']['id']).select(
+                db.recipe_ingredient.ALL,
+                db.ingredient.ALL,
+                left=db.ingredient.on(db.recipe_ingredient.ingredient_id == db.ingredient.id)
+            )
+            for ri in recipe_ingredients:
+                if ri.ingredient.id:
+                    qty = ri.recipe_ingredient.quantity_per_serving or 0
+                    total_nutrition['calories'] += (ri.ingredient.calories_per_unit or 0) * qty
+                    total_nutrition['protein']  += (ri.ingredient.protein_per_unit or 0) * qty
+                    total_nutrition['carbs']    += (ri.ingredient.carbs_per_unit or 0) * qty
+                    total_nutrition['fat']      += (ri.ingredient.fat_per_unit or 0) * qty
+            servings = recipe['recipe']['servings'] or 1
+            nutrition_per_serving = {k: round(v / servings, 2) for k, v in total_nutrition.items()}
+            # Add both per serving and total fields for the frontend cards
             formatted_recipe = {
                 'id': recipe['recipe']['id'],
                 'name': recipe['recipe']['name'],
@@ -526,10 +556,15 @@ def get_public_recipes():
                 'instruction_steps': recipe['recipe']['instruction_steps'],
                 'servings': recipe['recipe']['servings'],
                 'image': recipe['recipe']['image'],
-
+                'images': all_images,  # Include all images
                 'created_on': recipe['recipe']['created_on'],
                 'author': recipe['recipe']['author'],
-                'author_name': f"{recipe['auth_user']['first_name']} {recipe['auth_user']['last_name']}"
+                'author_name': f"{recipe['auth_user']['first_name']} {recipe['auth_user']['last_name']}",
+                'nutrition_per_serving': nutrition_per_serving,
+                'total_calories': total_nutrition['calories'],
+                'total_protein': total_nutrition['protein'],
+                'total_carbs': total_nutrition['carbs'],
+                'total_fat': total_nutrition['fat']
             }
             formatted_recipes.append(formatted_recipe)
 
@@ -887,15 +922,16 @@ def import_themealdb():
                                                 else:
                                                     admin_user_id = admin_user.id
                                                 
-                                                # Create recipe
+                                                # Create the recipe
                                                 recipe_id = db.recipe.insert(
                                                     name=recipe_name,
                                                     type=mapped_category,
                                                     description=f"Delicious {recipe_name} recipe imported from TheMealDB. {recipe_category} cuisine.",
                                                     instruction_steps=recipe_instructions,
                                                     servings=4,  # Default servings
+                                                    image=recipe_image,  # Store MealDB URLs directly
                                                     author=admin_user_id,
-                                                    created_on=datetime.utcnow()
+                                                    created_on=datetime.datetime.utcnow()
                                                 )
                                                 
                                                 # Extract and add ingredients
@@ -979,6 +1015,7 @@ def import_themealdb_options():
 
 @action('uploads/<filename>')
 def serve_upload(filename):
+    """Serve uploaded files from the local uploads directory"""
     uploads_folder = os.path.join(os.path.dirname(__file__), 'uploads')
     file_path = os.path.join(uploads_folder, filename)
     if not os.path.isfile(file_path):

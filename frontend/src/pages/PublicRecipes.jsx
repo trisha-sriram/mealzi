@@ -63,21 +63,23 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
       <div className="relative h-48 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-600 overflow-hidden">
         {recipe.image && !imageError ? (
           <img
-            src={`/uploads/${recipe.image}`}
+            src={recipe.image.startsWith('http') ? recipe.image : `/uploads/${recipe.image}`}
             alt={recipe.name}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
             onError={(e) => {
               console.error('Image failed to load:', {
                 src: e.target.src,
                 recipe: recipe.name,
-                image: recipe.image
+                image: recipe.image,
+                isMealDB: recipe.image.startsWith('http')
               });
               handleImageError();
             }}
             onLoad={() => {
               console.log('Image loaded successfully:', {
-                src: `/uploads/${recipe.image}`,
-                recipe: recipe.name
+                src: recipe.image.startsWith('http') ? recipe.image : `/uploads/${recipe.image}`,
+                recipe: recipe.name,
+                isMealDB: recipe.image.startsWith('http')
               });
             }}
           />
@@ -144,7 +146,7 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
         </div>
 
         {/* Nutrition Info */}
-        {(recipe.total_calories || recipe.total_protein || recipe.total_carbs || recipe.total_fat) && (
+        {(recipe.total_calories !== undefined || recipe.total_protein !== undefined || recipe.total_carbs !== undefined || recipe.total_fat !== undefined) && (
           <div className="grid grid-cols-4 gap-2 mb-4">
             <div className="text-center p-2 bg-red-50 rounded-lg">
               <div className="text-sm font-bold text-red-600">{Math.round((recipe.total_calories || 0) / (recipe.servings || 1))}</div>
