@@ -149,7 +149,7 @@ const RecipeDetailsSection = ({ recipeData, updateRecipeData, existingImages = [
               {existingImages.map((img, idx) => (
                 <div key={`existing-${idx}`} className="relative group">
                   <img
-                    src={img.startsWith('http') ? img : `/uploads/${img}`}
+                    src={img.startsWith('http') ? img : `/CustomRecipeManager/uploads/${img}`}
                     alt={`Recipe image ${idx + 1}`}
                     className="w-full h-32 object-cover rounded-lg"
                   />

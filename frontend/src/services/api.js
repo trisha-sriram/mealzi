@@ -17,11 +17,16 @@ class ApiService {
       ...options,
     };
 
-    console.log('Making API request:', { url, config });
+    console.log('Making API request:', { 
+      baseURL: this.baseURL,
+      endpoint,
+      url, 
+      config 
+    });
 
     try {
       const response = await fetch(url, config);
-      console.log('API response:', response);
+      console.log('API response status:', response.status, 'URL:', url);
 
       const contentType = response.headers.get('content-type');
       let data;

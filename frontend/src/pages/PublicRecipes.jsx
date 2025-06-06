@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import IngredientSearchBar from '../components/IngredientSearchBar';
 
-const API_BASE_URL = apiService.baseURL;
+// API calls use /CustomRecipeManager, but frontend routes use /CustomRecipeManager/static
+const API_BASE_URL = '/CustomRecipeManager';
 
 const RecipeTypeBadge = ({ type }) => {
   const colors = {
@@ -27,6 +28,7 @@ const RecipeTypeBadge = ({ type }) => {
 
 const RecipeCard = ({ recipe, index, onViewRecipe }) => {
   const [imageError, setImageError] = useState(false);
+  const navigate = useNavigate();
   
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -39,7 +41,7 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
 
   const copyShareLink = (e) => {
     e.stopPropagation();
-    const shareUrl = `${window.location.origin}/recipe/${recipe.id}`;
+    const shareUrl = `${window.location.origin}/CustomRecipeManager/static/recipe/${recipe.id}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
       // You could add a toast notification here
       alert('Recipe link copied to clipboard!');
@@ -48,7 +50,7 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
 
   const openShareableRecipe = (e) => {
     e.stopPropagation();
-    window.open(`/recipe/${recipe.id}`, '_blank');
+    navigate(`/recipe/${recipe.id}`);
   };
 
   return (
@@ -63,7 +65,7 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
       <div className="relative h-48 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-600 overflow-hidden">
         {recipe.image && !imageError ? (
           <img
-            src={recipe.image.startsWith('http') ? recipe.image : `/uploads/${recipe.image}`}
+            src={recipe.image.startsWith('http') ? recipe.image : `/CustomRecipeManager/uploads/${recipe.image}`}
             alt={recipe.name}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
             onError={(e) => {
@@ -77,7 +79,7 @@ const RecipeCard = ({ recipe, index, onViewRecipe }) => {
             }}
             onLoad={() => {
               console.log('Image loaded successfully:', {
-                src: recipe.image.startsWith('http') ? recipe.image : `/uploads/${recipe.image}`,
+                src: recipe.image.startsWith('http') ? recipe.image : `/CustomRecipeManager/uploads/${recipe.image}`,
                 recipe: recipe.name,
                 isMealDB: recipe.image.startsWith('http')
               });
@@ -288,6 +290,7 @@ const PublicRecipes = () => {
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
   
   // Search state
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' or 'ingredients'

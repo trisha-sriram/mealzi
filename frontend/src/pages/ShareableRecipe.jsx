@@ -193,7 +193,7 @@ const ShareableRecipe = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5 }}
-                  src={allImages[currentImageIndex].startsWith('http') ? allImages[currentImageIndex] : `${apiService.baseURL}/uploads/${allImages[currentImageIndex]}`}
+                  src={allImages[currentImageIndex].startsWith('http') ? allImages[currentImageIndex] : `/CustomRecipeManager/uploads/${allImages[currentImageIndex]}`}
                   alt={`${recipe.name} - Image ${currentImageIndex + 1}`}
                   className="w-full h-full object-contain drop-shadow-lg"
                   style={{ background: 'white' }}

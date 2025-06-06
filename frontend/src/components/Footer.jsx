@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from 'react-router-dom';
 
 function Footer() {
   return (
@@ -69,15 +70,21 @@ function Footer() {
             <h3 className="font-semibold text-lg mb-6 text-white">Navigation</h3>
             <ul className="space-y-4">
               {[
-                { name: "Home", href: "#" },
-                { name: "About", href: "#about" },
-                { name: "Features", href: "#features" },
-                { name: "Public Recipes", href: "/recipes" }
+                { name: "Home", to: "/", isAnchor: false },
+                { name: "About", href: "#about", isAnchor: true },
+                { name: "Features", href: "#features", isAnchor: true },
+                { name: "Public Recipes", to: "/recipes", isAnchor: false }
               ].map((link) => (
                 <motion.li key={link.name} whileHover={{ x: 5 }}>
-                  <a href={link.href} className="text-gray-400 hover:text-lime-300 transition-colors">
-                    {link.name}
-                  </a>
+                  {link.isAnchor ? (
+                    <a href={link.href} className="text-gray-400 hover:text-lime-300 transition-colors">
+                      {link.name}
+                    </a>
+                  ) : (
+                    <Link to={link.to} className="text-gray-400 hover:text-lime-300 transition-colors">
+                      {link.name}
+                    </Link>
+                  )}
                 </motion.li>
               ))}
             </ul>

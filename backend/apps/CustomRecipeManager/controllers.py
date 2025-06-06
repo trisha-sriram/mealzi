@@ -33,6 +33,8 @@ from .common import (
 from . import settings
 import datetime
 import os
+import mimetypes
+import requests
 
 def set_cors_headers():
     """Set CORS headers based on request origin"""
@@ -42,6 +44,32 @@ def set_cors_headers():
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
     response.headers['Content-Type'] = 'application/json'
+
+def download_themealdb_image(url, recipe_name):
+    """Download image from TheMealDB and save to uploads directory"""
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            # Create uploads directory if it doesn't exist
+            uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
+            os.makedirs(uploads_dir, exist_ok=True)
+            
+            # Create filename from recipe name and add timestamp to ensure uniqueness
+            timestamp = datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            filename = f"themealdb_{recipe_name.lower().replace(' ', '_')}_{timestamp}.jpg"
+            filepath = os.path.join(uploads_dir, filename)
+            
+            # Save the image
+            with open(filepath, 'wb') as f:
+                f.write(response.content)
+            
+            return filename
+        else:
+            logger.error(f"Failed to download TheMealDB image. Status code: {response.status_code}")
+            return None
+    except Exception as e:
+        logger.error(f"Error downloading TheMealDB image: {e}")
+        return None
 
 # ==============================================================
 # -------------------- INGREDIENT SEARCH -----------------------
@@ -889,7 +917,10 @@ def import_themealdb():
                                         recipe_name = recipe_detail.get('strMeal', '').strip()
                                         recipe_category = recipe_detail.get('strCategory', 'Dinner')
                                         recipe_instructions = recipe_detail.get('strInstructions', '').strip()
-                                        recipe_image = recipe_detail.get('strMealThumb', '')
+                                        recipe_image_url = recipe_detail.get('strMealThumb', '')
+                                        
+                                        # Download and save the image
+                                        image_filename = download_themealdb_image(recipe_image_url, recipe_name) if recipe_image_url else None
                                         
                                         # Map TheMealDB categories to our categories
                                         category_mapping = {
@@ -929,7 +960,7 @@ def import_themealdb():
                                                     description=f"Delicious {recipe_name} recipe imported from TheMealDB. {recipe_category} cuisine.",
                                                     instruction_steps=recipe_instructions,
                                                     servings=4,  # Default servings
-                                                    image=recipe_image,  # Store MealDB URLs directly
+                                                    image=image_filename,  # Store local filename instead of URL
                                                     author=admin_user_id,
                                                     created_on=datetime.datetime.utcnow()
                                                 )
@@ -1413,5 +1444,100 @@ def delete_recipe(recipe_id):
     db(db.recipe.id == recipe_id).delete()
     return {"success": True, "message": "Recipe deleted successfully"}
 
+# Root redirect to static path (as requested by user)
+@action('index')
+@action('/')
+def root_redirect():
+    """Redirect root path to the static React app"""
+    redirect('/CustomRecipeManager/static/')
 
+# Handle static directory root to serve index.html
+@action('static/')
+def serve_static_root():
+    """Serve index.html when accessing the static directory root"""
+    static_folder = os.path.join(os.path.dirname(__file__), 'static')
+    index_html_path = os.path.join(static_folder, 'index.html')
+    
+    logger.info("Serving React SPA index.html for static root")
+    
+    if os.path.isfile(index_html_path):
+        response.headers['Content-Type'] = 'text/html'
+        try:
+            with open(index_html_path, 'rb') as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Error serving index.html: {str(e)}")
+            response.status = 500
+            return "Error serving frontend"
+    else:
+        response.status = 404
+        return "Frontend not found"
 
+# Redirect clean URLs to the React app
+@action('static/recipe/<recipe_id:int>')
+def serve_recipe_spa(recipe_id):
+    """Serve React app for recipe URLs"""
+    static_folder = os.path.join(os.path.dirname(__file__), 'static')
+    index_html_path = os.path.join(static_folder, 'index.html')
+    
+    logger.info(f"Serving React SPA for recipe route: {recipe_id}")
+    
+    if os.path.isfile(index_html_path):
+        response.headers['Content-Type'] = 'text/html'
+        try:
+            with open(index_html_path, 'rb') as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Error serving index.html: {str(e)}")
+            response.status = 500
+            return "Error serving frontend"
+    else:
+        response.status = 404
+        return "Frontend not found"
+
+@action('static/recipes')
+def serve_recipes_spa():
+    """Serve React app for recipes page"""
+    static_folder = os.path.join(os.path.dirname(__file__), 'static')
+    index_html_path = os.path.join(static_folder, 'index.html')
+    
+    logger.info("Serving React SPA for recipes page")
+    
+    if os.path.isfile(index_html_path):
+        response.headers['Content-Type'] = 'text/html'
+        try:
+            with open(index_html_path, 'rb') as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Error serving index.html: {str(e)}")
+            response.status = 500
+            return "Error serving frontend"
+    else:
+        response.status = 404
+        return "Frontend not found"
+
+@action('static/dashboard')
+@action('static/create-recipe')  
+@action('static/login')
+@action('static/register')
+@action('static/contact')
+@action('static/about')
+def serve_common_spa_routes():
+    """Serve React app for common routes"""
+    static_folder = os.path.join(os.path.dirname(__file__), 'static')
+    index_html_path = os.path.join(static_folder, 'index.html')
+    
+    logger.info("Serving React SPA for common route")
+    
+    if os.path.isfile(index_html_path):
+        response.headers['Content-Type'] = 'text/html'
+        try:
+            with open(index_html_path, 'rb') as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Error serving index.html: {str(e)}")
+            response.status = 500
+            return "Error serving frontend"
+    else:
+        response.status = 404
+        return "Frontend not found"

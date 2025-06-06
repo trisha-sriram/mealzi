@@ -96,3 +96,4 @@ CREATE TABLE "recipe_multiple_images"(
     "is_active" CHAR(1)
 );
 success!
+success!

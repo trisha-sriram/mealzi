@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import config from '../config';
 
 function ContactPage() {
     const [formData, setFormData] = useState({
@@ -27,7 +28,7 @@ function ContactPage() {
         setSubmitStatus(null);
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/CustomRecipeManager/api/contact', {
+            const response = await fetch(`${config.API_BASE_URL}/api/contact`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

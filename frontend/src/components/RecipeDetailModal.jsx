@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import apiService from '../services/api';
 
-const API_BASE_URL = apiService.baseURL;
+// API calls use /CustomRecipeManager, but frontend routes use /CustomRecipeManager/static
+const API_BASE_URL = '/CustomRecipeManager';
 
 const RecipeDetailModal = ({ recipeId, isOpen, onClose, currentUser, onRecipeDeleted }) => {
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [servings, setServings] = useState(0);
+  const [servings, setServings] = useState(1);
   const [originalServings, setOriginalServings] = useState(0);
   const [scaledIngredients, setScaledIngredients] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen && recipeId) {
@@ -135,7 +138,7 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose, currentUser, onRecipeDel
 
   const handleEdit = () => {
     // Redirect to edit page with recipeId (implement edit mode in CreateRecipePage)
-    window.location.href = `/create-recipe?edit=${recipeId}`;
+    navigate(`/create-recipe?edit=${recipeId}`);
   };
 
   const handleDelete = async () => {
@@ -175,7 +178,7 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose, currentUser, onRecipeDel
               {recipe && (
                 <button
                   onClick={() => {
-                    const shareUrl = `${window.location.origin}/recipe/${recipe.id}`;
+                    const shareUrl = `${window.location.origin}/CustomRecipeManager/static/recipe/${recipe.id}`;
                     navigator.clipboard.writeText(shareUrl).then(() => {
                       alert('Recipe link copied to clipboard!');
                     });
@@ -296,7 +299,7 @@ const RecipeDetailModal = ({ recipeId, isOpen, onClose, currentUser, onRecipeDel
                     <div className="flex justify-center">
                       <div className="relative w-full max-w-md">
                         <img
-                          src={allImages[currentImageIndex].startsWith('http') ? allImages[currentImageIndex] : `/uploads/${allImages[currentImageIndex]}`}
+                          src={allImages[currentImageIndex].startsWith('http') ? allImages[currentImageIndex] : `/CustomRecipeManager/uploads/${allImages[currentImageIndex]}`}
                           alt={`${recipe.name} - Image ${currentImageIndex + 1}`}
                           className="w-full h-64 object-cover rounded-2xl shadow-lg"
                         />

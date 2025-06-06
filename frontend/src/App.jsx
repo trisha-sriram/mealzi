@@ -21,7 +21,7 @@ import ShareableRecipe from './pages/ShareableRecipe.jsx';
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router basename="/CustomRecipeManager/static">
         <div className="App flex flex-col min-h-screen">
           <Navbar />
           <main className="flex-grow">
