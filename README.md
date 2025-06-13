@@ -1,29 +1,55 @@
 # Mealzi - Custom Recipe Manager
 
-A modern recipe management platform built with React frontend and py4web backend.
+A web-based recipe manager built with py4web that allows users to create, browse, and share recipes. This is a database-driven application with user accounts and support for searching and managing shared ingredients and recipes.
 
 ## Features
 
-- 🍳 Smart Recipe Management
-- 📊 Nutrition Tracking
-- 🛒 Automatic Grocery Lists
-- ⏱️ Meal Planning
-- 💬 Contact Form for User Feedback
-- 📱 Responsive Design
+### Core Features
+- 🍳 Recipe Management
+  - Create, browse, and share recipes
+  - Search recipes by name and type
+  - Edit your own recipes
+  - View recipe details including ingredients and instructions
+- 📊 Ingredient Management
+  - Search ingredients by name
+  - Add new ingredients
+  - Shared ingredient database
+- 🔒 User Authentication
+  - Secure user accounts
+  - Author-only recipe editing
+- 🖼️ Recipe Details
+  - Recipe images
+  - Step-by-step instructions
+  - Servings management
+  - Ingredient quantities per serving
+
+### Advanced Features
+- 📥 TheMealDB Integration
+  - Import recipes from TheMealDB API
+  - One-time import functionality included
+- 🧮 Automatic Calculations
+  - Total calories per recipe based on ingredients
+  - Nutritional information tracking
+- 🔍 Search Capabilities
+  - Public search API for recipes (JSON format)
+  - Ingredient search functionality
+- 🎨 Professional UI
+  - Intuitive user interface
+  - Self-documenting design
 
 ## Getting Started
 
 ### Prerequisites
 
 - Python 3.8+
-- Node.js 16+
-- npm or yarn
+- py4web (included in class environment)
 
-### Backend Setup (py4web)
+### Setup
 
-1. Navigate to the backend directory:
+1. Clone the repository and navigate to the project directory:
    ```bash
-   cd backend
+   git clone <repository-url>
+   cd project-1-main
    ```
 
 2. Install Python dependencies:
@@ -31,54 +57,101 @@ A modern recipe management platform built with React frontend and py4web backend
    pip install -r requirements.txt
    ```
 
-3. Start the py4web server:
+3. Start the server using one of these methods:
+
+   **Method 1 - Using the start script (Recommended):**
    ```bash
+   ./start-server.sh
+   ```
+   This script will:
+   - Start the py4web server
+   - Open your browser automatically
+   - Show helpful URLs and instructions
+
+   **Method 2 - Manual start:**
+   ```bash
+   cd backend
    py4web run apps
    ```
 
-   The backend will be available at `http://127.0.0.1:8000`
+   The application will be available at:
+   - Frontend: `http://127.0.0.1:8000/CustomRecipeManager/static/`
+   - API: `http://127.0.0.1:8000/CustomRecipeManager/api/`
+   - Root redirect: `http://127.0.0.1:8000/` → `/CustomRecipeManager/static/`
 
-### Frontend Setup (React)
+### Project Structure
 
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
+The project follows the standard py4web application structure:
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+```
+├── apps/
+│   └── CustomRecipeManager/    # Main application directory
+│       ├── controllers.py      # API endpoints and page routes
+│       ├── models.py          # Database models
+│       ├── common.py          # App configuration
+│       ├── settings.py        # Application settings
+│       ├── __init__.py        # Package initialization
+│       ├── init_db.py         # Database initialization
+│       ├── import_mealdb.py   # MealDB data import
+│       ├── databases/         # Database files
+│       ├── translations/      # Language translations
+│       ├── uploads/          # User uploaded files
+│       └── static/           # Frontend static files
+│           ├── assets/       # Static assets
+│           ├── index.html    # Main HTML file
+│           └── vite.svg      # Vite logo
+└── README.md
+```
 
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+### Frontend Development
 
-   The frontend will be available at `http://localhost:5173`
+The frontend is served directly by py4web from the `static/` directory. This ensures:
+- Single process deployment
+- No need for separate frontend servers
+- Works in the standard class environment
+- Easy deployment and testing
+
+## Database Schema
+
+### Ingredients Table
+- name
+- unit
+- calories_per_unit
+- description
+
+### Recipes Table
+- name
+- type
+- description
+- image
+- author
+- instruction_steps
+- servings
+
+### Recipe-Ingredients Linking Table
+- recipe_id
+- ingredient_id
+- quantity_per_serving
 
 ## API Endpoints
 
+### Recipe Management
+- `GET /CustomRecipeManager/api/recipes` - List all recipes
+- `GET /CustomRecipeManager/api/recipes/{id}` - Get recipe details
+- `POST /CustomRecipeManager/api/recipes` - Create new recipe
+- `PUT /CustomRecipeManager/api/recipes/{id}` - Update recipe (author only)
+- `DELETE /CustomRecipeManager/api/recipes/{id}` - Delete recipe (author only)
+
+### Ingredient Management
 - `GET /CustomRecipeManager/api/ingredients_search` - Search ingredients
-- `POST /CustomRecipeManager/api/contact` - Submit contact form
-- `POST /CustomRecipeManager/api/recipes` - Create recipes (coming soon)
+- `POST /CustomRecipeManager/api/ingredients` - Add new ingredient
 
-## Project Structure
+## Security Features
 
-```
-├── backend/
-│   └── apps/
-│       └── CustomRecipeManager/
-│           ├── controllers.py    # API endpoints
-│           ├── models.py        # Database models
-│           └── common.py        # App configuration
-├── frontend/
-│   └── src/
-│       ├── components/          # React components
-│       ├── pages/              # Page components
-│       └── App.jsx             # Main app component
-└── README.md
-```
+- User authentication and authorization
+- Secure recipe editing (author-only)
+- Protected API endpoints
+- Input validation and sanitization
 
 ## Contact
 
