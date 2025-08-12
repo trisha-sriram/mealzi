@@ -3,23 +3,30 @@
 # Start Mealzi Recipe Manager Server
 # This script starts the py4web server and opens the browser to the correct URL
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "🚀 Starting Mealzi Recipe Manager..."
 
 # Navigate to backend directory
-cd backend
+cd "$SCRIPT_DIR/backend"
 
-# Check which python command is available
-if command -v python3 >/dev/null 2>&1; then
-    PYTHON_CMD="python3"
-elif command -v python >/dev/null 2>&1; then
-    PYTHON_CMD="python"
-else
-    echo "❌ Error: Neither 'python' nor 'python3' command found!"
-    echo "Please install Python 3 or make sure it's in your PATH"
+# Check if virtual environment exists
+if [ ! -d "venv" ]; then
+    echo "❌ Error: Virtual environment not found!"
+    echo "Please run the setup script first:"
+    echo "  cd backend && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
     exit 1
 fi
 
-echo "🐍 Using Python command: $PYTHON_CMD"
+# Activate virtual environment
+echo "🔧 Activating virtual environment..."
+source venv/bin/activate
+
+# Use python from virtual environment
+PYTHON_CMD="python"
+
+echo "🐍 Using Python from virtual environment: $PYTHON_CMD"
 
 # Start py4web server in the background
 echo "📡 Starting py4web server on http://127.0.0.1:8000..."

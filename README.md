@@ -39,22 +39,34 @@ A web-based recipe manager built with py4web that allows users to create, browse
 
 ## Getting Started
 
+> **📖 For detailed installation instructions, see [INSTALL.md](INSTALL.md)**
+
 ### Prerequisites
 
-- Python 3.8+
-- py4web (included in class environment)
+- Python 3.8+ (Python 3.13 recommended)
+- macOS, Linux, or Windows
 
-### Setup
+### Quick Setup
 
-1. Clone the repository and navigate to the project directory:
+1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd project-1-main
+   cd mealzi
    ```
 
-2. Install Python dependencies:
+2. **Run the setup script:**
    ```bash
-   pip install -r requirements.txt
+   ./setup.sh
+   ```
+   
+   This script will:
+   - Create a Python virtual environment
+   - Install all required dependencies (py4web, pydal, requests)
+   - Verify the installation
+
+3. **Start the server:**
+   ```bash
+   ./start-server.sh
    ```
 
 3. Start the server using one of these methods:
@@ -71,13 +83,20 @@ A web-based recipe manager built with py4web that allows users to create, browse
    **Method 2 - Manual start:**
    ```bash
    cd backend
-   py4web run apps
+   source venv/bin/activate
+   python -m py4web run apps --host 127.0.0.1 --port 8000
    ```
 
    The application will be available at:
    - Frontend: `http://127.0.0.1:8000/CustomRecipeManager/static/`
    - API: `http://127.0.0.1:8000/CustomRecipeManager/api/`
    - Root redirect: `http://127.0.0.1:8000/` → `/CustomRecipeManager/static/`
+
+### Available Scripts
+
+- **`./setup.sh`** - Creates virtual environment and installs dependencies
+- **`./start-server.sh`** - Starts the py4web server and opens browser
+- **`./stop-server.sh`** - Stops the py4web server
 
 ### Project Structure
 
